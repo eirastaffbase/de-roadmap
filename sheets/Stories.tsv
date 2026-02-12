@@ -1,0 +1,6 @@
+story_id	story_title	category	owner	active	created_at	updated_at
+STR-MOBILE-DEMO	Demoing mobile needs to be easier	Demo Experience	Product	TRUE	2026-02-12T09:00:00Z	2026-02-12T09:00:00Z
+STR-EMAIL-DEMOS	We need to automate our email demos	Automation	Solutions	TRUE	2026-02-12T09:00:00Z	2026-02-12T09:00:00Z
+STR-PROMPT-AUTO	We need prompt-based automation for easier setup	AI Workflow	Engineering	TRUE	2026-02-12T09:00:00Z	2026-02-12T09:00:00Z
+STR-METRICS	We need more usage info to focus and evangelize	Analytics	Product	TRUE	2026-02-12T09:00:00Z	2026-02-12T09:00:00Z
+STR-OAUTH-LOGIN	We need stronger security and safety for extension usage	Security	Platform	TRUE	2026-02-12T09:00:00Z	2026-02-12T09:00:00Z
