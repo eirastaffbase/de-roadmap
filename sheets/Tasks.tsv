@@ -1,6 +1,6 @@
-task_id	title	description	status	story_id	story_exempt	story_points	priority_label	version	order_index	updated_at	updated_by
-T-201	Mobile-sized window from Replify for demoing different users	Enable quick mobile-size switching for demos.	submitted	STR-MOBILE-DEMO	FALSE	5	P1	2.4.0	1	2026-02-12T09:00:00Z	eira
-T-202	Add Darin's email templates	Automate email demos with reusable templates.	submitted	STR-EMAIL-DEMOS	FALSE	3	P0	2.4.0	1	2026-02-12T09:00:00Z	eira
-T-203	Prompt-based flow for adding pages	Support prompt-driven page generation and setup.	submitted	STR-PROMPT-AUTO	FALSE	8	P0	2.4.0	1	2026-02-12T09:00:00Z	eira
-T-204	Metrics dashboard for feature adoption	Track what users use so roadmap can focus and evangelize.	submitted	STR-METRICS	FALSE	5	P1	2.4.0	1	2026-02-12T09:00:00Z	eira
-T-205	Implement OAuth/login	Improve security and usage safety for Chrome extension users.	submitted	STR-OAUTH-LOGIN	FALSE	8	P0	2.4.0	1	2026-02-12T09:00:00Z	eira
+task_id	title	description	status	story_id	story_exempt	story_points	priority_label	version	order_index	updated_at	updated_by	quarter
+T-201	Mobile-sized window from Replify for demoing different users	Enable quick mobile-size switching for demos.	submitted	STR-MOBILE-DEMO	FALSE	5	P1	2.4.0	1	2026-02-12T09:00:00Z	eira	Q1 2026
+T-202	Add Darin's email templates	Automate email demos with reusable templates.	submitted	STR-EMAIL-DEMOS	FALSE	3	P0	2.4.0	1	2026-02-12T09:00:00Z	eira	Q1 2026
+T-203	Prompt-based flow for adding pages	Support prompt-driven page generation and setup.	submitted	STR-PROMPT-AUTO	FALSE	8	P0	2.4.0	1	2026-02-12T09:00:00Z	eira	Q1 2026
+T-204	Metrics dashboard for feature adoption	Track what users use so roadmap can focus and evangelize.	submitted	STR-METRICS	FALSE	5	P1	2.4.0	1	2026-02-12T09:00:00Z	eira	Q1 2026
+T-205	Implement OAuth/login	Improve security and usage safety for Chrome extension users.	submitted	STR-OAUTH-LOGIN	FALSE	8	P0	2.4.0	1	2026-02-12T09:00:00Z	eira	Q1 2026

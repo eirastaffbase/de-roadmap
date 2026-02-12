@@ -35,5 +35,6 @@ In `app.js`, set:
 
 ## Notes
 - This implementation rewrites the full `Tasks` snapshot on each sync.
+- `Tasks` now includes a `quarter` column (`Q1 2026` ... `Q4 2026`).
 - `Releases` gets upserted when payload includes `release`.
 - Demo frontend auth is client-only and not secure for production.

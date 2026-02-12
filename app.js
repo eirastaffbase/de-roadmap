@@ -2,19 +2,22 @@ const STATUS_COLUMNS = [
   { id: "submitted", label: "Submitted" },
   { id: "backlog", label: "Backlog" },
   { id: "in_progress", label: "In Progress" },
-  { id: "waiting_review", label: "Waiting for Review" },
   { id: "completed", label: "Completed" }
 ];
 
 const PRIORITY_LABELS = ["P0", "P1", "P2", "P3"];
 const STORY_POINT_VALUES = [1, 2, 3, 5, 8, 13];
+const QUARTER_OPTIONS = ["Q1 2026", "Q2 2026", "Q3 2026", "Q4 2026"];
+const DEFAULT_VERSION = "2.4.0";
 
 const RELEASE_NOTES_URL =
   "https://docs.google.com/document/d/14iV4lUkYHuHv5VY3MPiIXDdRx_8SOY5Ml1M-gSPqvRY/edit?usp=sharing";
 
 const API_CONFIG = {
-  syncUrl: "",
-  getUrl: ""
+  syncUrl:
+    "https://script.google.com/macros/s/AKfycbywXAVhC0LwXb6n3cUmwpdzphprdsZWxIVeMyP7t9FhyAbNVTMBZ7QKGZrwuZBj_vp4RQ/exec",
+  getUrl:
+    "https://script.google.com/macros/s/AKfycbywXAVhC0LwXb6n3cUmwpdzphprdsZWxIVeMyP7t9FhyAbNVTMBZ7QKGZrwuZBj_vp4RQ/exec"
 };
 
 const DEMO_USERS = {
@@ -22,14 +25,31 @@ const DEMO_USERS = {
     password: "demoengineer",
     role: "editor"
   },
+  ishaan: {
+    password: "demoengineer",
+    role: "editor"
+  },
   seteam: {
     password: "gosolutions",
     role: "submitter"
+  },
+  viewer: {
+    password: "staffbaseviewer",
+    role: "viewer"
   }
 };
 
 const ROLE_PERMISSIONS = {
   guest: {
+    label: "Viewer",
+    canAddTask: false,
+    addTaskSubmittedOnly: false,
+    canAddStory: false,
+    canEditTask: false,
+    canMoveTask: false,
+    canSubmit: false
+  },
+  viewer: {
     label: "Viewer",
     canAddTask: false,
     addTaskSubmittedOnly: false,
@@ -65,7 +85,9 @@ const appState = {
   filters: {
     search: "",
     status: "all",
-    story: "all"
+    story: "all",
+    viewMode: "status",
+    quarter: "all"
   },
   auth: {
     username: null,
@@ -78,24 +100,35 @@ const appState = {
   storiesChanged: new Set(),
   collapsedGroups: {},
   taskModalMode: "create",
-  pendingMove: null
+  pendingMove: null,
+  draggingTaskId: null,
+  hasLoadedRemote: false,
+  lastFetchedAt: null,
+  isBusy: false,
+  submitInFlight: false
 };
 
 const dom = {};
 
 function cacheDom() {
+  dom.appShell = document.getElementById("appShell");
   dom.searchInput = document.getElementById("searchInput");
   dom.statusFilter = document.getElementById("statusFilter");
   dom.storyFilter = document.getElementById("storyFilter");
+  dom.viewModeToggleBtn = document.getElementById("viewModeToggleBtn");
+  dom.quarterFilterControl = document.getElementById("quarterFilterControl");
+  dom.quarterFilter = document.getElementById("quarterFilter");
   dom.board = document.getElementById("board");
   dom.dirtyIndicator = document.getElementById("dirtyIndicator");
   dom.submitBtn = document.getElementById("submitBtn");
+  dom.loadDataBtn = document.getElementById("loadDataBtn");
+  dom.refreshDataBtn = document.getElementById("refreshDataBtn");
   dom.addTaskBtn = document.getElementById("addTaskBtn");
   dom.addStoryBtn = document.getElementById("addStoryBtn");
 
   dom.nextVersion = document.getElementById("nextVersion");
   dom.nextVersionDate = document.getElementById("nextVersionDate");
-  dom.previousReleaseList = document.getElementById("previousReleaseList");
+  dom.releaseNotesLink = document.getElementById("releaseNotesLink");
 
   dom.loginIconBtn = document.getElementById("loginIconBtn");
   dom.loginIconText = document.getElementById("loginIconText");
@@ -112,6 +145,7 @@ function cacheDom() {
   dom.taskPointsInput = document.getElementById("taskPointsInput");
   dom.taskPriorityLabelInput = document.getElementById("taskPriorityLabelInput");
   dom.taskVersionInput = document.getElementById("taskVersionInput");
+  dom.taskQuarterInput = document.getElementById("taskQuarterInput");
   dom.taskExemptInput = document.getElementById("taskExemptInput");
   dom.taskFormError = document.getElementById("taskFormError");
   dom.cancelTaskBtn = document.getElementById("cancelTaskBtn");
@@ -132,10 +166,6 @@ function cacheDom() {
   dom.cancelMoveGuardBtn = document.getElementById("cancelMoveGuardBtn");
   dom.confirmMoveGuardBtn = document.getElementById("confirmMoveGuardBtn");
 
-  dom.payloadModalBackdrop = document.getElementById("payloadModalBackdrop");
-  dom.payloadPreview = document.getElementById("payloadPreview");
-  dom.closePayloadBtn = document.getElementById("closePayloadBtn");
-
   dom.loginModalBackdrop = document.getElementById("loginModalBackdrop");
   dom.loginForm = document.getElementById("loginForm");
   dom.loginUsernameInput = document.getElementById("loginUsernameInput");
@@ -145,6 +175,8 @@ function cacheDom() {
   dom.cancelLoginBtn = document.getElementById("cancelLoginBtn");
 
   dom.toast = document.getElementById("toast");
+  dom.loadingOverlay = document.getElementById("loadingOverlay");
+  dom.loadingMessage = document.getElementById("loadingMessage");
 }
 
 function nowIso() {
@@ -216,6 +248,7 @@ function loadSeedData() {
       storyPoints: 5,
       priorityLabel: "P1",
       version: "2.4.0",
+      quarter: "Q1 2026",
       order: 1,
       updatedAt: seedTime,
       updatedBy: "eira"
@@ -230,6 +263,7 @@ function loadSeedData() {
       storyPoints: 3,
       priorityLabel: "P0",
       version: "2.4.0",
+      quarter: "Q1 2026",
       order: 1,
       updatedAt: seedTime,
       updatedBy: "eira"
@@ -244,6 +278,7 @@ function loadSeedData() {
       storyPoints: 8,
       priorityLabel: "P0",
       version: "2.4.0",
+      quarter: "Q1 2026",
       order: 1,
       updatedAt: seedTime,
       updatedBy: "eira"
@@ -258,6 +293,7 @@ function loadSeedData() {
       storyPoints: 5,
       priorityLabel: "P1",
       version: "2.4.0",
+      quarter: "Q1 2026",
       order: 1,
       updatedAt: seedTime,
       updatedBy: "eira"
@@ -272,6 +308,7 @@ function loadSeedData() {
       storyPoints: 8,
       priorityLabel: "P0",
       version: "2.4.0",
+      quarter: "Q1 2026",
       order: 1,
       updatedAt: seedTime,
       updatedBy: "eira"
@@ -296,6 +333,164 @@ function loadSeedData() {
       releaseNotesUrl: RELEASE_NOTES_URL
     }
   ];
+}
+
+function normalizeRemoteTask(task) {
+  const status = STATUS_COLUMNS.some((column) => column.id === task.status)
+    ? task.status
+    : "submitted";
+  const priorityLabel = PRIORITY_LABELS.includes(task.priorityLabel)
+    ? task.priorityLabel
+    : "P2";
+  const storyPointsRaw =
+    task.storyPoints === "" || task.storyPoints === undefined ? null : task.storyPoints;
+  const storyPoints =
+    storyPointsRaw === null ? null : STORY_POINT_VALUES.includes(Number(storyPointsRaw))
+      ? Number(storyPointsRaw)
+      : null;
+  const quarter = QUARTER_OPTIONS.includes(String(task.quarter))
+    ? String(task.quarter)
+    : QUARTER_OPTIONS[0];
+
+  return {
+    id: String(task.id || ""),
+    title: String(task.title || "").trim(),
+    description: String(task.description || ""),
+    status,
+    storyId: task.storyId ? String(task.storyId) : null,
+    storyExempt: Boolean(task.storyExempt),
+    storyPoints,
+    priorityLabel,
+    version: normalizeVersion(task.version),
+    quarter,
+    order: Number(task.order || 0),
+    updatedAt: String(task.updatedAt || nowIso()),
+    updatedBy: String(task.updatedBy || "system")
+  };
+}
+
+function normalizeRemoteStory(story) {
+  return {
+    storyId: String(story.storyId || ""),
+    title: String(story.title || "").trim(),
+    category: String(story.category || "General"),
+    owner: String(story.owner || "Team"),
+    active: story.active !== false,
+    createdAt: String(story.createdAt || nowIso()),
+    updatedAt: String(story.updatedAt || nowIso())
+  };
+}
+
+function normalizeRemoteRelease(release) {
+  return {
+    version: String(release.version || ""),
+    releaseDate: String(release.releaseDate || ""),
+    isActive: Boolean(release.isActive),
+    isUpcoming: Boolean(release.isUpcoming),
+    notes: String(release.notes || ""),
+    releaseNotesUrl: String(release.releaseNotesUrl || RELEASE_NOTES_URL)
+  };
+}
+
+function applyRemoteRoadmapData(payload) {
+  const remoteTasks = Array.isArray(payload.tasks) ? payload.tasks : [];
+  const remoteStories = Array.isArray(payload.stories) ? payload.stories : [];
+  const remoteReleases = Array.isArray(payload.releases) ? payload.releases : [];
+
+  const mappedStories = remoteStories.map(normalizeRemoteStory).filter((story) => story.storyId);
+  const storyIds = new Set(mappedStories.map((story) => story.storyId));
+  const mappedTasks = remoteTasks
+    .map(normalizeRemoteTask)
+    .filter((task) => task.id && task.title)
+    .filter((task) => !task.storyId || storyIds.has(task.storyId));
+  const mappedReleases = remoteReleases
+    .map(normalizeRemoteRelease)
+    .filter((release) => release.version);
+
+  appState.stories = mappedStories.length ? mappedStories : appState.stories;
+  appState.tasks = mappedTasks.length ? mappedTasks : [];
+  appState.releases = mappedReleases.length ? mappedReleases : appState.releases;
+
+  appState.unsavedChanges = false;
+  appState.hasLoadedRemote = true;
+  appState.lastFetchedAt = nowIso();
+  clearChangeSets();
+}
+
+async function fetchRoadmapFromBackend(options) {
+  const params = options || {};
+  const showSuccessToast = params.showSuccessToast !== false;
+  const failSilently = params.failSilently === true;
+  const confirmOverwrite = params.confirmOverwrite === true;
+  const useBusyState = params.useBusyState !== false;
+  const busyMessage = params.busyMessage || "Loading roadmap data...";
+
+  if (!API_CONFIG.getUrl) {
+    if (!failSilently) showToast("No getUrl configured.", true);
+    return false;
+  }
+
+  const hasUnsaved =
+    appState.unsavedChanges ||
+    appState.changedTaskIds.size > 0 ||
+    appState.movedTaskIds.size > 0 ||
+    appState.editedTaskIds.size > 0 ||
+    appState.storiesChanged.size > 0;
+
+  if (confirmOverwrite && hasUnsaved) {
+    const shouldContinue = window.confirm(
+      "You have unsaved local changes. Fetching updates will replace local board state. Continue?"
+    );
+    if (!shouldContinue) return false;
+  }
+
+  try {
+    const url = new URL(API_CONFIG.getUrl);
+    url.searchParams.set("action", "roadmap");
+    url.searchParams.set("_t", String(Date.now()));
+
+    if (useBusyState) {
+      setBusyState(true, busyMessage);
+    }
+    dom.loadDataBtn.disabled = true;
+    dom.refreshDataBtn.disabled = true;
+
+    const response = await fetch(url.toString(), {
+      method: "GET"
+    });
+
+    if (!response.ok) {
+      throw new Error("Load failed with status " + response.status);
+    }
+
+    const payload = await response.json();
+    if (!payload || payload.ok !== true) {
+      throw new Error(payload?.error || "Backend returned an invalid payload.");
+    }
+
+    applyRemoteRoadmapData(payload);
+    renderReleaseSummary();
+    populateOptions();
+    renderBoard();
+    updateDirtyIndicator();
+
+    if (showSuccessToast) {
+      showToast("Loaded latest roadmap data.", false);
+    }
+    return true;
+  } catch (error) {
+    if (!failSilently) {
+      showToast(error.message || "Failed to load roadmap data.", true);
+    }
+    return false;
+  } finally {
+    if (useBusyState) {
+      setBusyState(false);
+    }
+    dom.loadDataBtn.disabled = false;
+    dom.refreshDataBtn.disabled = false;
+    renderAuthUi();
+  }
 }
 
 function formatDate(isoDate) {
@@ -324,6 +519,29 @@ function getNextVersionRelease() {
   );
 }
 
+function getDefaultVersion() {
+  return getNextVersionRelease()?.version || DEFAULT_VERSION;
+}
+
+function normalizeVersion(value) {
+  const trimmed = String(value || "").trim();
+  return trimmed || getDefaultVersion();
+}
+
+function setBusyState(isBusy, message) {
+  appState.isBusy = Boolean(isBusy);
+  if (dom.appShell) {
+    dom.appShell.classList.toggle("busy", appState.isBusy);
+  }
+  if (dom.loadingOverlay) {
+    dom.loadingOverlay.classList.toggle("hidden", !appState.isBusy);
+    dom.loadingOverlay.setAttribute("aria-hidden", appState.isBusy ? "false" : "true");
+  }
+  if (dom.loadingMessage && message) {
+    dom.loadingMessage.textContent = message;
+  }
+}
+
 function renderReleaseSummary() {
   const nextRelease = getNextVersionRelease();
   if (nextRelease) {
@@ -334,32 +552,13 @@ function renderReleaseSummary() {
     dom.nextVersionDate.textContent = "Add a release row";
   }
 
-  dom.previousReleaseList.innerHTML = "";
-  const previousReleases = appState.releases
+  const previousRelease = appState.releases
     .filter((release) => !release.isUpcoming)
-    .sort((a, b) => new Date(b.releaseDate).valueOf() - new Date(a.releaseDate).valueOf());
+    .sort((a, b) => new Date(b.releaseDate).valueOf() - new Date(a.releaseDate).valueOf())[0];
 
-  if (previousReleases.length === 0) {
-    const item = document.createElement("li");
-    item.textContent = "No previous versions";
-    dom.previousReleaseList.append(item);
-    return;
-  }
-
-  previousReleases.forEach((release) => {
-    const item = document.createElement("li");
-    if (release.releaseNotesUrl) {
-      const link = document.createElement("a");
-      link.href = release.releaseNotesUrl;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = "v " + release.version + " (" + formatDate(release.releaseDate) + ")";
-      item.append(link);
-    } else {
-      item.textContent = "v " + release.version + " (" + formatDate(release.releaseDate) + ")";
-    }
-    dom.previousReleaseList.append(item);
-  });
+  const releaseNotesUrl =
+    previousRelease?.releaseNotesUrl || nextRelease?.releaseNotesUrl || RELEASE_NOTES_URL;
+  dom.releaseNotesLink.href = releaseNotesUrl;
 }
 
 function getCookieValue(name) {
@@ -433,6 +632,21 @@ function renderAuthUi() {
   dom.submitBtn.title = permission.canSubmit ? "Submit changes" : "Editor role required";
 }
 
+function updateViewModeToggleLabel() {
+  if (!dom.viewModeToggleBtn) return;
+  const isQuarterView = appState.filters.viewMode === "quarter";
+  dom.viewModeToggleBtn.textContent = isQuarterView ? "View by status" : "View by quarter";
+  dom.viewModeToggleBtn.setAttribute("aria-pressed", isQuarterView ? "true" : "false");
+}
+
+function updateQuarterFilterVisibility() {
+  const showQuarterControls = appState.filters.viewMode === "quarter";
+  dom.quarterFilterControl.classList.toggle("hidden-control", !showQuarterControls);
+  dom.quarterFilterControl.setAttribute("aria-hidden", showQuarterControls ? "false" : "true");
+  dom.statusFilter.disabled = showQuarterControls;
+  updateViewModeToggleLabel();
+}
+
 function updateDirtyIndicator() {
   if (appState.unsavedChanges) {
     dom.dirtyIndicator.textContent = "Unsaved changes";
@@ -457,6 +671,19 @@ function showToast(message, isError) {
 }
 
 function populateOptions() {
+  dom.quarterFilter.innerHTML = "";
+  const allQuarters = document.createElement("option");
+  allQuarters.value = "all";
+  allQuarters.textContent = "All quarters";
+  dom.quarterFilter.append(allQuarters);
+  QUARTER_OPTIONS.forEach((quarter) => {
+    const option = document.createElement("option");
+    option.value = quarter;
+    option.textContent = quarter;
+    dom.quarterFilter.append(option);
+  });
+  dom.quarterFilter.value = appState.filters.quarter;
+
   dom.statusFilter.innerHTML = "";
   const allStatuses = document.createElement("option");
   allStatuses.value = "all";
@@ -548,6 +775,16 @@ function populateOptions() {
     option.textContent = label;
     dom.taskPriorityLabelInput.append(option);
   });
+
+  dom.taskQuarterInput.innerHTML = "";
+  QUARTER_OPTIONS.forEach((quarter) => {
+    const option = document.createElement("option");
+    option.value = quarter;
+    option.textContent = quarter;
+    dom.taskQuarterInput.append(option);
+  });
+
+  updateQuarterFilterVisibility();
 }
 
 function getPriorityRank(priorityLabel) {
@@ -579,6 +816,10 @@ function taskMatchesFilters(task) {
     return false;
   }
 
+  if (appState.filters.quarter !== "all" && task.quarter !== appState.filters.quarter) {
+    return false;
+  }
+
   return true;
 }
 
@@ -590,6 +831,27 @@ function getNextStatusId(statusId) {
 
 function getStatusLabel(statusId) {
   return STATUS_COLUMNS.find((column) => column.id === statusId)?.label || statusId;
+}
+
+function clearColumnDragHover() {
+  document.querySelectorAll(".column.drag-over").forEach((column) => {
+    column.classList.remove("drag-over");
+  });
+}
+
+function handleTaskDragStart(event, taskId) {
+  appState.draggingTaskId = taskId;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", taskId);
+  requestAnimationFrame(() => {
+    event.currentTarget.classList.add("dragging");
+  });
+}
+
+function handleTaskDragEnd(event) {
+  event.currentTarget.classList.remove("dragging");
+  appState.draggingTaskId = null;
+  clearColumnDragHover();
 }
 
 function markTaskDirty(taskId, kind) {
@@ -648,8 +910,13 @@ function createTaskCard(task) {
 
   const versionBadge = document.createElement("span");
   versionBadge.className = "badge version";
-  versionBadge.textContent = "v " + task.version;
+  versionBadge.textContent = "v " + normalizeVersion(task.version);
   badgeRow.append(versionBadge);
+
+  const quarterBadge = document.createElement("span");
+  quarterBadge.className = "badge points";
+  quarterBadge.textContent = task.quarter || QUARTER_OPTIONS[0];
+  badgeRow.append(quarterBadge);
 
   if (task.storyExempt) {
     const exemptBadge = document.createElement("span");
@@ -662,6 +929,12 @@ function createTaskCard(task) {
   actionRow.className = "card-actions";
 
   const permissions = getPermissions();
+  card.draggable = permissions.canMoveTask;
+  if (permissions.canMoveTask) {
+    card.addEventListener("dragstart", (event) => handleTaskDragStart(event, task.id));
+    card.addEventListener("dragend", handleTaskDragEnd);
+  }
+
   if (permissions.canEditTask) {
     const editBtn = document.createElement("button");
     editBtn.className = "text-btn";
@@ -732,18 +1005,100 @@ function buildGroupsForStatus(statusId) {
   });
 }
 
+function buildGroupsForQuarter(quarter) {
+  const groupMap = new Map();
+  const tasks = appState.tasks
+    .filter((task) => task.quarter === quarter)
+    .filter(taskMatchesFilters)
+    .sort(compareTasks);
+
+  tasks.forEach((task) => {
+    const key = task.storyId || "__unassigned";
+    if (!groupMap.has(key)) {
+      if (!task.storyId) {
+        groupMap.set(key, {
+          key,
+          storyId: null,
+          title: "Unassigned",
+          category: "Intake",
+          tasks: []
+        });
+      } else {
+        const story = getStoryById(task.storyId);
+        groupMap.set(key, {
+          key,
+          storyId: task.storyId,
+          title: story?.title || task.storyId,
+          category: story?.category || "General",
+          tasks: []
+        });
+      }
+    }
+    groupMap.get(key).tasks.push(task);
+  });
+
+  return Array.from(groupMap.values()).sort((a, b) => {
+    if (a.storyId === null) return -1;
+    if (b.storyId === null) return 1;
+    return a.title.localeCompare(b.title);
+  });
+}
+
 function renderBoard() {
   dom.board.innerHTML = "";
+  const permissions = getPermissions();
 
-  const columns =
-    appState.filters.status === "all"
-      ? STATUS_COLUMNS
-      : STATUS_COLUMNS.filter((column) => column.id === appState.filters.status);
+  const isQuarterView = appState.filters.viewMode === "quarter";
+  const showSubmittedColumn = appState.tasks.some(
+    (task) => task.status === "submitted" && taskMatchesFilters(task)
+  );
+  const columns = isQuarterView
+    ? QUARTER_OPTIONS.filter((quarter) =>
+        appState.filters.quarter === "all" ? true : quarter === appState.filters.quarter
+      ).map((quarter) => ({ id: quarter, label: quarter }))
+    : (appState.filters.status === "all"
+        ? STATUS_COLUMNS.filter((column) => column.id !== "submitted" || showSubmittedColumn)
+        : STATUS_COLUMNS.filter((column) => column.id === appState.filters.status));
 
   columns.forEach((column) => {
     const columnSection = document.createElement("section");
     columnSection.className = "column";
     columnSection.setAttribute("aria-label", column.label);
+    columnSection.dataset.status = isQuarterView ? "" : column.id;
+    columnSection.dataset.quarter = isQuarterView ? column.id : "";
+
+    if (permissions.canMoveTask) {
+      columnSection.addEventListener("dragover", (event) => {
+        if (!appState.draggingTaskId) return;
+        event.preventDefault();
+        columnSection.classList.add("drag-over");
+      });
+
+      columnSection.addEventListener("dragleave", (event) => {
+        if (columnSection.contains(event.relatedTarget)) return;
+        columnSection.classList.remove("drag-over");
+      });
+
+      columnSection.addEventListener("drop", (event) => {
+        if (!appState.draggingTaskId) return;
+        event.preventDefault();
+        const draggedTaskId = appState.draggingTaskId || event.dataTransfer.getData("text/plain");
+        columnSection.classList.remove("drag-over");
+        if (isQuarterView) {
+          const task = appState.tasks.find((item) => item.id === draggedTaskId);
+          if (!task) return;
+          if (!QUARTER_OPTIONS.includes(column.id)) return;
+          task.quarter = column.id;
+          task.updatedAt = nowIso();
+          task.updatedBy = appState.auth.username || "guest";
+          markTaskDirty(task.id, "edit");
+          renderBoard();
+          showToast("Moved to " + column.id + ".", false);
+        } else {
+          moveTaskToStatus(draggedTaskId, column.id);
+        }
+      });
+    }
 
     const header = document.createElement("header");
     header.className = "column-header";
@@ -752,14 +1107,17 @@ function renderBoard() {
     title.textContent = column.label;
     const count = document.createElement("span");
     count.className = "column-count";
-    const visibleCount = appState.tasks.filter((task) => task.status === column.id && taskMatchesFilters(task)).length;
+    const visibleCount = appState.tasks.filter((task) => {
+      const matchesColumn = isQuarterView ? task.quarter === column.id : task.status === column.id;
+      return matchesColumn && taskMatchesFilters(task);
+    }).length;
     count.textContent = visibleCount + " visible";
     header.append(title, count);
 
     const body = document.createElement("div");
     body.className = "column-body";
 
-    const groups = buildGroupsForStatus(column.id);
+    const groups = isQuarterView ? buildGroupsForQuarter(column.id) : buildGroupsForStatus(column.id);
     if (groups.length === 0) {
       const empty = document.createElement("p");
       empty.className = "column-empty";
@@ -823,7 +1181,6 @@ function closeAllModals() {
   closeModal(dom.taskModalBackdrop);
   closeModal(dom.storyModalBackdrop);
   closeModal(dom.moveGuardModalBackdrop);
-  closeModal(dom.payloadModalBackdrop);
   closeModal(dom.loginModalBackdrop);
 }
 
@@ -862,7 +1219,8 @@ function openTaskModal(mode, taskId) {
     dom.taskStoryInput.value = "";
     dom.taskPointsInput.value = "";
     dom.taskPriorityLabelInput.value = "P2";
-    dom.taskVersionInput.value = getNextVersionRelease()?.version || "2.4.0";
+    dom.taskVersionInput.value = getDefaultVersion();
+    dom.taskQuarterInput.value = QUARTER_OPTIONS[0];
     dom.taskExemptInput.checked = false;
   } else {
     if (!permissions.canEditTask) {
@@ -879,7 +1237,8 @@ function openTaskModal(mode, taskId) {
     dom.taskStoryInput.value = task.storyId || "";
     dom.taskPointsInput.value = task.storyPoints ? String(task.storyPoints) : "";
     dom.taskPriorityLabelInput.value = task.priorityLabel;
-    dom.taskVersionInput.value = task.version;
+    dom.taskVersionInput.value = normalizeVersion(task.version);
+    dom.taskQuarterInput.value = QUARTER_OPTIONS.includes(task.quarter) ? task.quarter : QUARTER_OPTIONS[0];
     dom.taskExemptInput.checked = !!task.storyExempt;
   }
 
@@ -978,7 +1337,8 @@ function saveTaskFromModal(event) {
     storyId: dom.taskStoryInput.value || null,
     storyPoints: dom.taskPointsInput.value ? Number(dom.taskPointsInput.value) : null,
     priorityLabel: dom.taskPriorityLabelInput.value,
-    version: dom.taskVersionInput.value.trim() || getNextVersionRelease()?.version || "2.4.0",
+    version: normalizeVersion(dom.taskVersionInput.value),
+    quarter: dom.taskQuarterInput.value,
     storyExempt: dom.taskExemptInput.checked
   };
 
@@ -994,6 +1354,11 @@ function saveTaskFromModal(event) {
 
   if (formValue.storyPoints !== null && !STORY_POINT_VALUES.includes(formValue.storyPoints)) {
     dom.taskFormError.textContent = "Story points must be 1, 2, 3, 5, 8, or 13.";
+    return;
+  }
+
+  if (!QUARTER_OPTIONS.includes(formValue.quarter)) {
+    dom.taskFormError.textContent = "Quarter is required.";
     return;
   }
 
@@ -1024,6 +1389,7 @@ function saveTaskFromModal(event) {
       storyPoints: formValue.storyPoints,
       priorityLabel: formValue.priorityLabel,
       version: formValue.version,
+      quarter: formValue.quarter,
       order: nextOrderIndex(formValue.status, formValue.storyId, null),
       updatedAt: nowIso(),
       updatedBy: appState.auth.username || "guest"
@@ -1065,6 +1431,7 @@ function saveTaskFromModal(event) {
   task.storyPoints = formValue.storyPoints;
   task.priorityLabel = formValue.priorityLabel;
   task.version = formValue.version;
+  task.quarter = formValue.quarter;
   task.updatedAt = nowIso();
   task.updatedBy = appState.auth.username || "guest";
 
@@ -1142,6 +1509,9 @@ function validateTask(task) {
   if (task.storyPoints !== null && !STORY_POINT_VALUES.includes(Number(task.storyPoints))) {
     errors.push(task.id + ": story points must use Fibonacci values.");
   }
+  if (!QUARTER_OPTIONS.includes(task.quarter)) {
+    errors.push(task.id + ": invalid quarter.");
+  }
   if (task.status !== "submitted" && !task.storyExempt && !task.storyId) {
     errors.push(task.id + ": story is required outside Submitted unless skipped.");
   }
@@ -1177,7 +1547,8 @@ function buildSubmitPayload() {
         story_exempt: task.storyExempt,
         story_points: task.storyPoints,
         priority_label: task.priorityLabel,
-        version: task.version,
+        version: normalizeVersion(task.version),
+        quarter: task.quarter,
         order_index: task.order,
         updated_at: task.updatedAt,
         updated_by: task.updatedBy || appState.auth.username || "guest"
@@ -1188,16 +1559,15 @@ function buildSubmitPayload() {
   };
 }
 
-function openPayloadModal(payload) {
-  dom.payloadPreview.textContent = JSON.stringify(payload, null, 2);
-  openModal(dom.payloadModalBackdrop);
-}
-
 function clearChangeSets() {
   appState.changedTaskIds.clear();
   appState.movedTaskIds.clear();
   appState.editedTaskIds.clear();
   appState.storiesChanged.clear();
+}
+
+function buildIdempotencyKey() {
+  return "roadmap-sync-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
 }
 
 async function submitPayloadToBackend(payload) {
@@ -1208,12 +1578,16 @@ async function submitPayloadToBackend(payload) {
     };
   }
 
+  const requestPayload = {
+    action: "sync",
+    ...payload
+  };
+  const formBody = new URLSearchParams();
+  formBody.set("payload", JSON.stringify(requestPayload));
+
   const response = await fetch(API_CONFIG.syncUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
+    body: formBody
   });
 
   if (!response.ok) {
@@ -1232,20 +1606,24 @@ async function handleSubmit() {
     showToast("Only editor role can submit payloads.", true);
     return;
   }
+  if (appState.submitInFlight) {
+    showToast("Submit already in progress.", true);
+    return;
+  }
 
   const errors = validateBoard();
   if (errors.length > 0) {
-    openPayloadModal({
-      errors,
-      hint: "Resolve validation issues and submit again."
-    });
+    console.error("[Roadmap Validation Errors]", errors);
     showToast("Validation errors must be fixed first.", true);
     return;
   }
 
   const payload = buildSubmitPayload();
-  openPayloadModal(payload);
+  payload.idempotencyKey = buildIdempotencyKey();
+  console.log("[Roadmap Submit Payload]", payload);
 
+  appState.submitInFlight = true;
+  setBusyState(true, "Submitting roadmap changes...");
   try {
     const result = await submitPayloadToBackend(payload);
     if (result.synced) {
@@ -1258,6 +1636,10 @@ async function handleSubmit() {
     }
   } catch (error) {
     showToast(error.message || "Submit failed.", true);
+  } finally {
+    appState.submitInFlight = false;
+    setBusyState(false);
+    renderAuthUi();
   }
 }
 
@@ -1297,31 +1679,44 @@ function applyMove(task, nextStatus, options) {
   return true;
 }
 
-function moveTaskToNextColumn(taskId) {
+function moveTaskToStatus(taskId, targetStatus) {
   const permissions = getPermissions();
   if (!permissions.canMoveTask) {
     showToast("Only editor role can move tasks.", true);
-    return;
+    return false;
+  }
+
+  if (!STATUS_COLUMNS.some((column) => column.id === targetStatus)) {
+    showToast("Invalid target column.", true);
+    return false;
   }
 
   const task = appState.tasks.find((item) => item.id === taskId);
-  if (!task) return;
+  if (!task) return false;
+
+  if (targetStatus !== "submitted" && !task.storyId && !task.storyExempt) {
+    openMoveGuardModal(task.id, targetStatus);
+    return false;
+  }
+
+  const moved = applyMove(task, targetStatus, {});
+  if (moved) {
+    showToast("Moved to " + getStatusLabel(targetStatus) + ".", false);
+  }
+  return moved;
+}
+
+function moveTaskToNextColumn(taskId) {
+  const task = appState.tasks.find((item) => item.id === taskId);
+  if (!task) return false;
 
   const nextStatus = getNextStatusId(task.status);
   if (!nextStatus) {
     showToast("Task is already in the last column.", true);
-    return;
+    return false;
   }
 
-  if (nextStatus !== "submitted" && !task.storyId && !task.storyExempt) {
-    openMoveGuardModal(task.id, nextStatus);
-    return;
-  }
-
-  const moved = applyMove(task, nextStatus, {});
-  if (moved) {
-    showToast("Moved to " + getStatusLabel(nextStatus) + ".", false);
-  }
+  return moveTaskToStatus(taskId, nextStatus);
 }
 
 function confirmMoveGuard() {
@@ -1425,6 +1820,35 @@ function bindEvents() {
     renderBoard();
   });
 
+  dom.viewModeToggleBtn.addEventListener("click", () => {
+    appState.filters.viewMode = appState.filters.viewMode === "quarter" ? "status" : "quarter";
+    if (appState.filters.viewMode === "status") {
+      appState.filters.quarter = "all";
+      dom.quarterFilter.value = "all";
+    }
+    updateQuarterFilterVisibility();
+    renderBoard();
+  });
+
+  dom.quarterFilter.addEventListener("change", (event) => {
+    appState.filters.quarter = event.target.value;
+    renderBoard();
+  });
+
+  dom.loadDataBtn.addEventListener("click", async () => {
+    await fetchRoadmapFromBackend({
+      showSuccessToast: true,
+      confirmOverwrite: true
+    });
+  });
+
+  dom.refreshDataBtn.addEventListener("click", async () => {
+    await fetchRoadmapFromBackend({
+      showSuccessToast: true,
+      confirmOverwrite: true
+    });
+  });
+
   dom.addTaskBtn.addEventListener("click", () => openTaskModal("create", null));
   dom.addStoryBtn.addEventListener("click", openStoryModal);
   dom.submitBtn.addEventListener("click", handleSubmit);
@@ -1438,8 +1862,6 @@ function bindEvents() {
   dom.cancelMoveGuardBtn.addEventListener("click", closeMoveGuardModal);
   dom.confirmMoveGuardBtn.addEventListener("click", confirmMoveGuard);
 
-  dom.closePayloadBtn.addEventListener("click", () => closeModal(dom.payloadModalBackdrop));
-
   dom.loginIconBtn.addEventListener("click", openLoginModal);
   dom.loginForm.addEventListener("submit", handleLogin);
   dom.cancelLoginBtn.addEventListener("click", closeLoginModal);
@@ -1449,7 +1871,6 @@ function bindEvents() {
     dom.taskModalBackdrop,
     dom.storyModalBackdrop,
     dom.moveGuardModalBackdrop,
-    dom.payloadModalBackdrop,
     dom.loginModalBackdrop
   ].forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
@@ -1464,8 +1885,9 @@ function bindEvents() {
   });
 }
 
-function init() {
+async function init() {
   cacheDom();
+  setBusyState(true, "Loading roadmap data...");
   loadSeedData();
   loadAuthFromCookie();
   renderReleaseSummary();
@@ -1474,7 +1896,13 @@ function init() {
   updateDirtyIndicator();
   bindEvents();
   renderBoard();
+
+  await fetchRoadmapFromBackend({
+    showSuccessToast: false,
+    failSilently: true,
+    useBusyState: false
+  });
+  setBusyState(false);
 }
 
 init();
-EOF

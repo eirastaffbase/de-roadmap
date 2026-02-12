@@ -3,6 +3,22 @@ const SHEET_NAMES = {
   STORIES: "Stories",
   RELEASES: "Releases"
 };
+const DEFAULT_VERSION = "2.4.0";
+const IDEMPOTENCY_TTL_SECONDS = 600;
+const ROADMAP_SPREADSHEET_ID = "1SuKtz34cMQLCUIJtDyQs6ivkvsfpbYkrGeqq8poEsp8";
+const FEEDBACK_SOURCE = {
+  SPREADSHEET_ID: "1uuCv5GQyY93nwVUKH6_C2TbJXkL_3pwTjqmt7s5HL3Q",
+  SHEET_ID: 2033660287,
+  HEADER_ROW: 1,
+  FIRST_DATA_ROW: 2,
+  TIMESTAMP_COL: 1,
+  VERSION_COL: 2,
+  FEEDBACK_COL: 3,
+  EMAIL_COL: 4
+};
+const SCRIPT_PROPERTIES = {
+  LAST_FEEDBACK_ROW: "feedback_last_imported_row"
+};
 
 const HEADERS = {
   Tasks: [
@@ -17,7 +33,8 @@ const HEADERS = {
     "version",
     "order_index",
     "updated_at",
-    "updated_by"
+    "updated_by",
+    "quarter"
   ],
   Stories: [
     "story_id",
@@ -38,6 +55,12 @@ const HEADERS = {
   ]
 };
 
+function getRoadmapSpreadsheet_() {
+  return ROADMAP_SPREADSHEET_ID
+    ? SpreadsheetApp.openById(ROADMAP_SPREADSHEET_ID)
+    : SpreadsheetApp.getActiveSpreadsheet();
+}
+
 function doGet(e) {
   try {
     const action = (e && e.parameter && e.parameter.action) || "roadmap";
@@ -50,7 +73,7 @@ function doGet(e) {
       return jsonResponse_({ ok: false, error: "Unsupported action: " + action });
     }
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getRoadmapSpreadsheet_();
     const taskRecords = readRecords_(ss, SHEET_NAMES.TASKS, HEADERS.Tasks);
     const storyRecords = readRecords_(ss, SHEET_NAMES.STORIES, HEADERS.Stories);
     const releaseRecords = readRecords_(ss, SHEET_NAMES.RELEASES, HEADERS.Releases);
@@ -64,7 +87,8 @@ function doGet(e) {
       storyExempt: toBool_(row.story_exempt),
       storyPoints: row.story_points === "" ? null : Number(row.story_points),
       priorityLabel: row.priority_label,
-      version: row.version,
+      version: normalizeVersion_(row.version),
+      quarter: row.quarter || "Q1 2026",
       order: row.order_index === "" ? 0 : Number(row.order_index),
       updatedAt: row.updated_at,
       updatedBy: row.updated_by
@@ -104,15 +128,46 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  let lock = null;
   try {
     const payload = parsePayload_(e);
     const action = payload.action || "sync";
+
+    if (action === "sync_feedback") {
+      const feedbackResult = syncFeedbackSubmissions_();
+      return jsonResponse_({
+        ok: true,
+        message: "Feedback sync complete",
+        imported: feedbackResult.imported,
+        scannedRows: feedbackResult.scannedRows,
+        lastImportedRow: feedbackResult.lastImportedRow
+      });
+    }
 
     if (action !== "sync") {
       return jsonResponse_({ ok: false, error: "Unsupported action: " + action });
     }
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const idempotencyKey = String(payload.idempotencyKey || "").trim();
+    const cache = idempotencyKey ? CacheService.getScriptCache() : null;
+    const cacheKey = cache ? getIdempotencyCacheKey_(idempotencyKey) : "";
+    if (cache && cacheKey) {
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        return jsonResponse_(JSON.parse(cached));
+      }
+    }
+
+    lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    if (cache && cacheKey) {
+      const cachedWithLock = cache.get(cacheKey);
+      if (cachedWithLock) {
+        return jsonResponse_(JSON.parse(cachedWithLock));
+      }
+    }
+
+    const ss = getRoadmapSpreadsheet_();
     ensureSheetWithHeaders_(ss, SHEET_NAMES.TASKS, HEADERS.Tasks);
     ensureSheetWithHeaders_(ss, SHEET_NAMES.STORIES, HEADERS.Stories);
     ensureSheetWithHeaders_(ss, SHEET_NAMES.RELEASES, HEADERS.Releases);
@@ -123,29 +178,209 @@ function doPost(e) {
       upsertRelease_(ss, payload.release);
     }
 
-    return jsonResponse_({
+    const responseBody = {
       ok: true,
       message: "Sync complete",
       taskCount: writtenTasks,
       storiesChanged: (payload.storiesChanged || []).length,
       movedCards: (payload.movedCards || []).length,
-      submittedAt: payload.submittedAt || new Date().toISOString()
-    });
+      submittedAt: payload.submittedAt || new Date().toISOString(),
+      idempotencyKey: idempotencyKey || null
+    };
+    if (cache && cacheKey) {
+      cache.put(cacheKey, JSON.stringify(responseBody), IDEMPOTENCY_TTL_SECONDS);
+    }
+    return jsonResponse_(responseBody);
   } catch (error) {
     return jsonResponse_({ ok: false, error: String(error) });
+  } finally {
+    if (lock) {
+      try {
+        lock.releaseLock();
+      } catch (releaseError) {
+        // no-op
+      }
+    }
   }
 }
 
 function parsePayload_(e) {
-  if (!e || !e.postData || !e.postData.contents) {
-    throw new Error("Missing JSON body.");
+  if (!e) {
+    throw new Error("Missing request event.");
   }
 
-  const body = JSON.parse(e.postData.contents);
-  if (!body || typeof body !== "object") {
-    throw new Error("Invalid JSON payload.");
+  // Preferred path for form-encoded requests: payload=<json>
+  if (e.parameter && e.parameter.payload) {
+    const parsed = JSON.parse(e.parameter.payload);
+    if (!parsed || typeof parsed !== "object") {
+      throw new Error("Invalid payload field.");
+    }
+    return parsed;
   }
-  return body;
+
+  if (!e.postData || !e.postData.contents) {
+    throw new Error("Missing request body.");
+  }
+
+  const raw = String(e.postData.contents || "");
+
+  // Backward compatibility: accept direct JSON body
+  try {
+    const parsedJson = JSON.parse(raw);
+    if (parsedJson && typeof parsedJson === "object") {
+      return parsedJson;
+    }
+  } catch (jsonError) {
+    // Continue to form parsing fallback below.
+  }
+
+  // Fallback: parse application/x-www-form-urlencoded manually
+  const form = parseFormEncoded_(raw);
+  if (form.payload) {
+    const parsedPayload = JSON.parse(form.payload);
+    if (parsedPayload && typeof parsedPayload === "object") {
+      return parsedPayload;
+    }
+  }
+
+  throw new Error("Invalid payload. Expected JSON body or form payload field.");
+}
+
+function parseFormEncoded_(raw) {
+  const result = {};
+  raw.split("&").forEach((pair) => {
+    if (!pair) return;
+    const parts = pair.split("=");
+    const key = decodeURIComponent(String(parts[0] || "").replace(/\+/g, " "));
+    const value = decodeURIComponent(String(parts.slice(1).join("=") || "").replace(/\+/g, " "));
+    result[key] = value;
+  });
+  return result;
+}
+
+function syncFeedbackToRoadmap() {
+  const result = syncFeedbackSubmissions_();
+  Logger.log(JSON.stringify(result));
+  return result;
+}
+
+function resetFeedbackSyncCursor() {
+  PropertiesService.getScriptProperties().deleteProperty(SCRIPT_PROPERTIES.LAST_FEEDBACK_ROW);
+  return { ok: true, message: "Feedback sync cursor reset." };
+}
+
+function syncFeedbackSubmissions_() {
+  const roadmapSs = getRoadmapSpreadsheet_();
+  const feedbackSheet = getFeedbackSheet_();
+  const props = PropertiesService.getScriptProperties();
+  const lastImportedRow = Number(
+    props.getProperty(SCRIPT_PROPERTIES.LAST_FEEDBACK_ROW) || String(FEEDBACK_SOURCE.HEADER_ROW)
+  );
+  const firstDataRow = FEEDBACK_SOURCE.FIRST_DATA_ROW;
+  const sourceLastRow = feedbackSheet.getLastRow();
+  const startRow = Math.max(firstDataRow, lastImportedRow + 1);
+
+  if (sourceLastRow < startRow) {
+    return {
+      imported: 0,
+      scannedRows: 0,
+      lastImportedRow: lastImportedRow
+    };
+  }
+
+  const maxCol = Math.max(
+    FEEDBACK_SOURCE.TIMESTAMP_COL,
+    FEEDBACK_SOURCE.VERSION_COL,
+    FEEDBACK_SOURCE.FEEDBACK_COL,
+    FEEDBACK_SOURCE.EMAIL_COL
+  );
+  const rowCount = sourceLastRow - startRow + 1;
+  const rows = feedbackSheet.getRange(startRow, 1, rowCount, maxCol).getValues();
+
+  const existingTasks = readRecords_(roadmapSs, SHEET_NAMES.TASKS, HEADERS.Tasks);
+  let nextSubmittedOrder = existingTasks.reduce((maxValue, task) => {
+    if (String(task.status) !== "submitted") return maxValue;
+    return Math.max(maxValue, Number(task.order_index) || 0);
+  }, 0);
+
+  const taskRows = [];
+  rows.forEach((row, index) => {
+    const rowNumber = startRow + index;
+    const timestampRaw = row[FEEDBACK_SOURCE.TIMESTAMP_COL - 1];
+    const versionRaw = row[FEEDBACK_SOURCE.VERSION_COL - 1];
+    const feedbackRaw = row[FEEDBACK_SOURCE.FEEDBACK_COL - 1];
+    const emailRaw = row[FEEDBACK_SOURCE.EMAIL_COL - 1];
+
+    const feedbackText = cleanCell_(feedbackRaw);
+    const submitterEmail = cleanCell_(emailRaw);
+    if (!feedbackText && !submitterEmail) {
+      return;
+    }
+
+    nextSubmittedOrder += 1;
+    taskRows.push([
+      createFeedbackTaskId_(rowNumber),
+      "Feedback Form Submission",
+      buildFeedbackDescription_(feedbackText, submitterEmail),
+      "submitted",
+      "",
+      "",
+      "",
+      "",
+      normalizeVersion_(versionRaw),
+      nextSubmittedOrder,
+      normalizeIsoDate_(timestampRaw),
+      "feedback-form",
+      ""
+    ]);
+  });
+
+  appendTaskRows_(roadmapSs, taskRows);
+  props.setProperty(SCRIPT_PROPERTIES.LAST_FEEDBACK_ROW, String(sourceLastRow));
+
+  return {
+    imported: taskRows.length,
+    scannedRows: rowCount,
+    lastImportedRow: sourceLastRow
+  };
+}
+
+function getFeedbackSheet_() {
+  const feedbackSs = SpreadsheetApp.openById(FEEDBACK_SOURCE.SPREADSHEET_ID);
+  const byId = feedbackSs
+    .getSheets()
+    .find((sheet) => sheet.getSheetId() === FEEDBACK_SOURCE.SHEET_ID);
+  if (byId) return byId;
+  return feedbackSs.getSheets()[0];
+}
+
+function appendTaskRows_(ss, taskRows) {
+  if (!taskRows.length) return;
+  ensureSheetWithHeaders_(ss, SHEET_NAMES.TASKS, HEADERS.Tasks);
+  const sheet = ss.getSheetByName(SHEET_NAMES.TASKS);
+  const startRow = sheet.getLastRow() + 1;
+  sheet.getRange(startRow, 1, taskRows.length, HEADERS.Tasks.length).setValues(taskRows);
+}
+
+function createFeedbackTaskId_(rowNumber) {
+  return "FB-" + String(rowNumber) + "-" + Utilities.getUuid().slice(0, 8);
+}
+
+function buildFeedbackDescription_(feedbackText, submitterEmail) {
+  const sections = [];
+  if (feedbackText) sections.push(feedbackText);
+  if (submitterEmail) sections.push("Submitter email: " + submitterEmail);
+  return sections.join("\n\n");
+}
+
+function normalizeIsoDate_(value) {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.valueOf())) return new Date().toISOString();
+  return date.toISOString();
+}
+
+function cleanCell_(value) {
+  return String(value || "").trim();
 }
 
 function ensureSheetWithHeaders_(ss, sheetName, headers) {
@@ -201,10 +436,11 @@ function writeTasksSnapshot_(ss, tasks) {
     normalizeBool_(task.story_exempt),
     task.story_points === null || task.story_points === undefined ? "" : Number(task.story_points),
     task.priority_label || "P2",
-    task.version || "",
+    normalizeVersion_(task.version),
     task.order_index === undefined || task.order_index === null ? "" : Number(task.order_index),
     task.updated_at || "",
-    task.updated_by || ""
+    task.updated_by || "",
+    task.quarter || "Q1 2026"
   ]);
 
   sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
@@ -262,6 +498,25 @@ function toBool_(value) {
 
 function normalizeBool_(value) {
   return toBool_(value) ? "TRUE" : "FALSE";
+}
+
+function normalizeVersion_(value) {
+  const text = String(value || "").trim();
+  return text || DEFAULT_VERSION;
+}
+
+function getIdempotencyCacheKey_(idempotencyKey) {
+  return "roadmap_sync_" + sha256Hex_(idempotencyKey);
+}
+
+function sha256Hex_(input) {
+  const raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(input || ""));
+  return raw
+    .map((byte) => {
+      const normalized = byte < 0 ? byte + 256 : byte;
+      return ("0" + normalized.toString(16)).slice(-2);
+    })
+    .join("");
 }
 
 function jsonResponse_(obj) {

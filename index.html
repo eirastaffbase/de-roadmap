@@ -7,22 +7,19 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app-shell">
+  <div id="appShell" class="app-shell">
     <header class="topbar">
       <div class="brand">
-        <h1>Extension Roadmap Board</h1>
-        <p>Simple roadmap flow with story context and Sheets-ready sync payloads.</p>
+        <h1>Replify Roadmap Board</h1>
+        <section class="release-banner" aria-live="polite">
+          <span class="release-label">Next version</span>
+          <span id="nextVersion" class="release-version">v 2.4.0</span>
+          <span id="nextVersionDate" class="release-date">Target date pending</span>
+          <div class="release-links">
+            <a id="releaseNotesLink" href="#" target="_blank" rel="noopener noreferrer">Previous version release notes</a>
+          </div>
+        </section>
       </div>
-
-      <section class="release-banner" aria-live="polite">
-        <span class="release-label">Next version</span>
-        <span id="nextVersion" class="release-version">v 2.4.0</span>
-        <span id="nextVersionDate" class="release-date">Target date pending</span>
-        <div class="release-links">
-          <span class="release-links-label">Previous release notes:</span>
-          <ul id="previousReleaseList"></ul>
-        </div>
-      </section>
 
       <div class="login-box">
         <button id="loginIconBtn" class="icon-btn" type="button" aria-label="Login settings">
@@ -49,7 +46,15 @@
         <select id="storyFilter"></select>
       </div>
 
+      <div id="quarterFilterControl" class="control hidden-control" aria-hidden="true">
+        <label for="quarterFilter">Quarter</label>
+        <select id="quarterFilter"></select>
+      </div>
+
       <div class="actions">
+        <button id="viewModeToggleBtn" class="btn btn-soft" type="button" aria-pressed="false">View by quarter</button>
+        <button id="loadDataBtn" class="btn btn-soft" type="button">Load data</button>
+        <button id="refreshDataBtn" class="btn btn-soft" type="button">Fetch update</button>
         <button id="addTaskBtn" class="btn btn-soft" type="button">Add task</button>
         <button id="addStoryBtn" class="btn btn-soft" type="button">Add story</button>
         <span id="dirtyIndicator" class="chip clean" role="status" aria-live="polite">All changes synced</span>
@@ -58,24 +63,6 @@
     </section>
 
     <main id="board" class="board" aria-label="Roadmap board"></main>
-
-    <section class="sheets-layout" aria-label="Google Sheets tabs and columns">
-      <h2>Google Sheets schema</h2>
-      <div class="sheet-grid">
-        <article class="sheet-card">
-          <h3>Tasks tab</h3>
-          <p><strong>Columns:</strong> task_id, title, description, status, story_id, story_exempt, story_points, priority_label, version, order_index, updated_at, updated_by</p>
-        </article>
-        <article class="sheet-card">
-          <h3>Stories tab</h3>
-          <p><strong>Columns:</strong> story_id, story_title, category, owner, active, created_at, updated_at</p>
-        </article>
-        <article class="sheet-card">
-          <h3>Releases tab</h3>
-          <p><strong>Columns:</strong> version, release_date, is_active, is_upcoming, notes, release_notes_url</p>
-        </article>
-      </div>
-    </section>
   </div>
 
   <div id="taskModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
@@ -118,6 +105,11 @@
           <div class="control">
             <label for="taskVersionInput">Version</label>
             <input id="taskVersionInput" type="text" placeholder="2.4.0">
+          </div>
+
+          <div class="control">
+            <label for="taskQuarterInput">Quarter</label>
+            <select id="taskQuarterInput"></select>
           </div>
 
           <div class="checkbox-row">
@@ -190,17 +182,6 @@
     </div>
   </div>
 
-  <div id="payloadModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="payloadModalTitle">
-    <div class="modal">
-      <h2 id="payloadModalTitle">Submit payload preview</h2>
-      <p class="modal-note">This payload is ready for Google Apps Script <code>doPost</code>.</p>
-      <pre id="payloadPreview"></pre>
-      <div class="modal-actions">
-        <button id="closePayloadBtn" class="btn btn-soft" type="button">Close</button>
-      </div>
-    </div>
-  </div>
-
   <div id="loginModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
     <div class="modal narrow">
       <h2 id="loginModalTitle">Login</h2>
@@ -225,6 +206,12 @@
   </div>
 
   <div id="toast" class="toast success" role="status" aria-live="polite"></div>
+  <div id="loadingOverlay" class="loading-overlay hidden" aria-live="polite" aria-hidden="true">
+    <div class="loading-card">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <p id="loadingMessage">Loading roadmap data...</p>
+    </div>
+  </div>
 
   <script src="app.js" defer></script>
 </body>
