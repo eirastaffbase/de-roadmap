@@ -3,745 +3,55 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Roadmap Board MVP</title>
-  <style>
-    :root {
-      --bg-main: #f6f7fb;
-      --bg-accent: #e8f6ff;
-      --surface: #ffffff;
-      --surface-soft: #fdfefe;
-      --text-main: #10223d;
-      --text-muted: #5f6f86;
-      --brand-blue: #0b74de;
-      --brand-cyan: #36c2f2;
-      --brand-coral: #ff6b4a;
-      --brand-sand: #ffd9cf;
-      --border: #dbe3ef;
-      --border-strong: #b9c8de;
-      --success: #00a86b;
-      --danger: #d63b45;
-      --warning: #f8b400;
-      --shadow: 0 16px 40px rgba(16, 34, 61, 0.12);
-      --radius: 16px;
-      --radius-sm: 10px;
-      --focus: 0 0 0 3px rgba(54, 194, 242, 0.35);
-      --anim-fast: 140ms;
-      --anim-mid: 220ms;
-      --font-body: "Avenir Next", "Nunito Sans", "Segoe UI", sans-serif;
-      --font-head: "Trebuchet MS", "Avenir Next", sans-serif;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      margin: 0;
-      min-height: 100%;
-      font-family: var(--font-body);
-      color: var(--text-main);
-      background:
-        radial-gradient(circle at 8% 0%, rgba(54, 194, 242, 0.18), transparent 35%),
-        radial-gradient(circle at 90% 10%, rgba(255, 107, 74, 0.15), transparent 30%),
-        linear-gradient(180deg, var(--bg-accent) 0%, var(--bg-main) 45%);
-    }
-
-    body {
-      padding: 24px;
-    }
-
-    .app-shell {
-      max-width: 1480px;
-      margin: 0 auto;
-      display: grid;
-      gap: 18px;
-    }
-
-    .topbar {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 18px 20px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .topbar::after {
-      content: "";
-      position: absolute;
-      right: -120px;
-      top: -80px;
-      width: 260px;
-      height: 260px;
-      border-radius: 50%;
-      background: linear-gradient(180deg, rgba(255, 107, 74, 0.22) 0%, rgba(54, 194, 242, 0) 80%);
-      pointer-events: none;
-    }
-
-    .brand h1 {
-      margin: 0;
-      font-family: var(--font-head);
-      font-size: clamp(1.4rem, 2vw, 2rem);
-      letter-spacing: 0.01em;
-    }
-
-    .brand p {
-      margin: 6px 0 0;
-      color: var(--text-muted);
-      font-size: 0.95rem;
-    }
-
-    .release-banner {
-      background: linear-gradient(130deg, #08244d 0%, #0b74de 70%, #36c2f2 100%);
-      color: #f7fbff;
-      padding: 12px 16px;
-      border-radius: 14px;
-      min-width: 270px;
-      display: grid;
-      gap: 2px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .release-banner .release-label {
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      font-size: 0.72rem;
-      opacity: 0.85;
-    }
-
-    .release-banner .release-version {
-      font-family: var(--font-head);
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: #ffe3cf;
-    }
-
-    .release-banner .release-date {
-      font-size: 0.87rem;
-      opacity: 0.95;
-    }
-
-    .controls {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: end;
-      box-shadow: 0 8px 24px rgba(16, 34, 61, 0.07);
-    }
-
-    .control {
-      display: grid;
-      gap: 4px;
-      min-width: 160px;
-    }
-
-    .control label {
-      font-size: 0.76rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      color: var(--text-muted);
-      text-transform: uppercase;
-    }
-
-    input[type="text"],
-    input[type="number"],
-    select,
-    textarea {
-      width: 100%;
-      border: 1px solid var(--border);
-      background: var(--surface-soft);
-      border-radius: var(--radius-sm);
-      padding: 8px 10px;
-      color: var(--text-main);
-      font-size: 0.95rem;
-      transition: border-color var(--anim-fast), box-shadow var(--anim-fast), transform var(--anim-fast);
-    }
-
-    input:focus-visible,
-    select:focus-visible,
-    textarea:focus-visible,
-    button:focus-visible,
-    summary:focus-visible {
-      outline: none;
-      border-color: var(--brand-cyan);
-      box-shadow: var(--focus);
-    }
-
-    textarea {
-      min-height: 70px;
-      resize: vertical;
-    }
-
-    .actions {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 7px 11px;
-      font-size: 0.82rem;
-      font-weight: 700;
-      border: 1px solid transparent;
-      background: #e9edf4;
-      color: #45566f;
-    }
-
-    .chip.clean {
-      background: #e8f8f1;
-      color: #126645;
-      border-color: rgba(0, 168, 107, 0.28);
-    }
-
-    .chip.dirty {
-      background: #fff5e8;
-      color: #945a00;
-      border-color: rgba(248, 180, 0, 0.35);
-    }
-
-    .btn {
-      border: 1px solid transparent;
-      border-radius: 11px;
-      padding: 9px 14px;
-      font-weight: 700;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: transform var(--anim-fast), box-shadow var(--anim-fast), background var(--anim-fast);
-    }
-
-    .btn:hover {
-      transform: translateY(-1px);
-    }
-
-    .btn:active {
-      transform: translateY(0);
-    }
-
-    .btn-primary {
-      background: linear-gradient(130deg, #0b74de, #2a95ec);
-      color: #fff;
-      box-shadow: 0 10px 20px rgba(11, 116, 222, 0.25);
-    }
-
-    .btn-primary:hover {
-      box-shadow: 0 12px 22px rgba(11, 116, 222, 0.3);
-    }
-
-    .btn-soft {
-      background: #edf2fb;
-      color: #274261;
-      border-color: var(--border);
-    }
-
-    .board {
-      display: grid;
-      grid-auto-flow: column;
-      grid-auto-columns: minmax(290px, 1fr);
-      gap: 14px;
-      overflow-x: auto;
-      padding: 4px 2px 10px;
-      scroll-snap-type: x mandatory;
-    }
-
-    .board::-webkit-scrollbar {
-      height: 10px;
-    }
-
-    .board::-webkit-scrollbar-thumb {
-      background: rgba(16, 34, 61, 0.22);
-      border-radius: 999px;
-    }
-
-    .column {
-      background: rgba(255, 255, 255, 0.88);
-      backdrop-filter: blur(4px);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      min-height: 540px;
-      display: flex;
-      flex-direction: column;
-      scroll-snap-align: start;
-      overflow: hidden;
-      box-shadow: 0 8px 16px rgba(16, 34, 61, 0.05);
-    }
-
-    .column-header {
-      padding: 12px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 247, 252, 0.9));
-    }
-
-    .column-title {
-      margin: 0;
-      font-size: 0.96rem;
-      font-weight: 800;
-      letter-spacing: 0.01em;
-    }
-
-    .column-count {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      background: #eff4fb;
-      border-radius: 999px;
-      padding: 4px 8px;
-      border: 1px solid #d7e1f2;
-    }
-
-    .column-body {
-      padding: 10px;
-      display: grid;
-      gap: 10px;
-      align-content: start;
-    }
-
-    .story-group {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: #fcfdff;
-      transition: border-color var(--anim-fast), box-shadow var(--anim-fast), background var(--anim-fast);
-    }
-
-    .story-group.drag-over {
-      border-color: var(--brand-cyan);
-      box-shadow: 0 0 0 2px rgba(54, 194, 242, 0.24);
-      background: #f4fdff;
-    }
-
-    .story-group summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 8px 9px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      border-radius: 12px;
-    }
-
-    .story-group summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .summary-main {
-      display: grid;
-      gap: 2px;
-      min-width: 0;
-    }
-
-    .summary-main strong {
-      font-size: 0.83rem;
-      line-height: 1.2;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 180px;
-    }
-
-    .summary-meta {
-      display: inline-flex;
-      gap: 6px;
-      align-items: center;
-      font-size: 0.72rem;
-      color: var(--text-muted);
-    }
-
-    .category-tag {
-      background: #e3f5ff;
-      color: #0d4f87;
-      border: 1px solid #bee6fb;
-      border-radius: 999px;
-      padding: 2px 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      font-size: 0.64rem;
-      font-weight: 700;
-    }
-
-    .group-cards {
-      padding: 8px;
-      display: grid;
-      gap: 8px;
-      min-height: 44px;
-    }
-
-    .group-empty {
-      margin: 0;
-      font-size: 0.76rem;
-      color: var(--text-muted);
-      padding: 6px;
-      border: 1px dashed var(--border);
-      border-radius: 8px;
-    }
-
-    .task-card {
-      border: 1px solid #d7e3f4;
-      border-left: 4px solid var(--brand-blue);
-      background: #fff;
-      border-radius: 12px;
-      padding: 10px;
-      display: grid;
-      gap: 9px;
-      box-shadow: 0 8px 14px rgba(16, 34, 61, 0.05);
-      animation: cardIn var(--anim-mid) ease;
-    }
-
-    .task-card[data-priority="P0"] {
-      border-left-color: #d93f56;
-    }
-
-    .task-card[data-priority="P1"] {
-      border-left-color: #f08a24;
-    }
-
-    .task-card[data-priority="P2"] {
-      border-left-color: #3c8fe8;
-    }
-
-    .task-card[data-priority="P3"] {
-      border-left-color: #7c90ad;
-    }
-
-    .task-card.dragging {
-      opacity: 0.5;
-      transform: rotate(2deg);
-    }
-
-    .task-title {
-      margin: 0;
-      font-size: 0.9rem;
-      line-height: 1.35;
-      font-weight: 700;
-    }
-
-    .task-description {
-      margin: 0;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      line-height: 1.4;
-    }
-
-    .badge-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .badge {
-      font-size: 0.68rem;
-      border-radius: 999px;
-      padding: 3px 7px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      border: 1px solid transparent;
-      text-transform: uppercase;
-    }
-
-    .badge.priority {
-      background: #e6edf9;
-      border-color: #cfdff7;
-      color: #23457a;
-    }
-
-    .badge.points {
-      background: #eef9f2;
-      border-color: #d3efd8;
-      color: #1f6f45;
-    }
-
-    .badge.version {
-      background: var(--brand-sand);
-      border-color: #ffb9a8;
-      color: #8c2e1a;
-      font-size: 0.72rem;
-      padding: 4px 8px;
-    }
-
-    .badge.exempt {
-      background: #fff3da;
-      border-color: #f7daa5;
-      color: #7a5400;
-    }
-
-    .card-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 6px;
-    }
-
-    .text-btn {
-      border: 1px solid var(--border);
-      background: #f3f7fd;
-      color: #224369;
-      border-radius: 8px;
-      padding: 5px 8px;
-      font-size: 0.76rem;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .drop-marker {
-      height: 32px;
-      border: 2px dashed #86c8ff;
-      border-radius: 10px;
-      background: rgba(134, 200, 255, 0.15);
-    }
-
-    .sheets-layout {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px;
-      display: grid;
-      gap: 10px;
-      box-shadow: 0 6px 18px rgba(16, 34, 61, 0.06);
-    }
-
-    .sheets-layout h2 {
-      margin: 0;
-      font-size: 1rem;
-      font-family: var(--font-head);
-    }
-
-    .sheet-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 10px;
-    }
-
-    .sheet-card {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px;
-      background: #fcfdff;
-    }
-
-    .sheet-card h3 {
-      margin: 0 0 8px;
-      font-size: 0.92rem;
-    }
-
-    .sheet-card p {
-      margin: 0;
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      line-height: 1.4;
-    }
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(10, 21, 40, 0.45);
-      display: grid;
-      place-items: center;
-      padding: 20px;
-      z-index: 20;
-    }
-
-    .modal-backdrop.hidden {
-      display: none;
-    }
-
-    .modal {
-      width: min(680px, 100%);
-      max-height: 88vh;
-      overflow: auto;
-      background: #fff;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow);
-      padding: 14px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .modal h2 {
-      margin: 0;
-      font-size: 1.05rem;
-      font-family: var(--font-head);
-    }
-
-    .modal-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 10px;
-    }
-
-    .modal-error {
-      margin: 0;
-      color: var(--danger);
-      font-size: 0.82rem;
-      min-height: 1em;
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .checkbox-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-      background: #fbfdff;
-      font-size: 0.86rem;
-      color: var(--text-main);
-    }
-
-    #payloadPreview {
-      margin: 0;
-      padding: 10px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: #f6f8fc;
-      overflow: auto;
-      max-height: 56vh;
-      font-size: 0.78rem;
-      line-height: 1.45;
-      color: #243a58;
-    }
-
-    .toast {
-      position: fixed;
-      right: 16px;
-      bottom: 16px;
-      z-index: 30;
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-weight: 700;
-      font-size: 0.88rem;
-      box-shadow: var(--shadow);
-      transform: translateY(18px);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity var(--anim-mid), transform var(--anim-mid);
-    }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .toast.success {
-      background: #dbf9eb;
-      color: #135d3f;
-      border: 1px solid #b9ecd2;
-    }
-
-    .toast.error {
-      background: #ffe9ea;
-      color: #8e222c;
-      border: 1px solid #ffc3c8;
-    }
-
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
-    @keyframes cardIn {
-      from {
-        opacity: 0;
-        transform: translateY(8px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @media (max-width: 900px) {
-      body {
-        padding: 14px;
-      }
-
-      .topbar {
-        padding: 14px;
-      }
-
-      .controls {
-        padding: 10px;
-      }
-
-      .actions {
-        width: 100%;
-        margin-left: 0;
-        justify-content: flex-start;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *,
-      *::before,
-      *::after {
-        animation-duration: 1ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 1ms !important;
-        scroll-behavior: auto !important;
-      }
-    }
-  </style>
+  <title>Roadmap Board</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">
         <h1>Extension Roadmap Board</h1>
-        <p>Drag tasks across release stages, keep story context clear, and submit a Sheets-ready payload.</p>
+        <p>Simple roadmap flow with story context and Sheets-ready sync payloads.</p>
       </div>
-      <aside class="release-banner" aria-live="polite">
-        <span class="release-label">Current release</span>
-        <span id="releaseVersion" class="release-version">v 2.4.0 release</span>
-        <span id="releaseDate" class="release-date">Date pending</span>
-      </aside>
+
+      <section class="release-banner" aria-live="polite">
+        <span class="release-label">Next version</span>
+        <span id="nextVersion" class="release-version">v 2.4.0</span>
+        <span id="nextVersionDate" class="release-date">Target date pending</span>
+        <div class="release-links">
+          <span class="release-links-label">Previous release notes:</span>
+          <ul id="previousReleaseList"></ul>
+        </div>
+      </section>
+
+      <div class="login-box">
+        <button id="loginIconBtn" class="icon-btn" type="button" aria-label="Login settings">
+          <span aria-hidden="true">👤</span>
+          <span id="loginIconText">Login</span>
+        </button>
+        <span id="authStatus" class="auth-status">Viewing as guest</span>
+      </div>
     </header>
 
     <section class="controls" aria-label="Board controls">
-      <div class="control" style="min-width: 240px;">
+      <div class="control search-control">
         <label for="searchInput">Search tasks</label>
-        <input id="searchInput" type="text" placeholder="Search by title, description, or story">
+        <input id="searchInput" type="text" placeholder="Search title, description, story">
       </div>
+
       <div class="control">
-        <label for="statusFilter">Status filter</label>
+        <label for="statusFilter">Status</label>
         <select id="statusFilter"></select>
       </div>
+
       <div class="control">
-        <label for="storyFilter">Story filter</label>
+        <label for="storyFilter">Story</label>
         <select id="storyFilter"></select>
       </div>
+
       <div class="actions">
+        <button id="addTaskBtn" class="btn btn-soft" type="button">Add task</button>
+        <button id="addStoryBtn" class="btn btn-soft" type="button">Add story</button>
         <span id="dirtyIndicator" class="chip clean" role="status" aria-live="polite">All changes synced</span>
         <button id="submitBtn" class="btn btn-primary" type="button">Submit</button>
       </div>
@@ -749,12 +59,12 @@
 
     <main id="board" class="board" aria-label="Roadmap board"></main>
 
-    <section class="sheets-layout" aria-label="Google Sheets backend organization">
-      <h2>Google Sheets backend layout</h2>
+    <section class="sheets-layout" aria-label="Google Sheets tabs and columns">
+      <h2>Google Sheets schema</h2>
       <div class="sheet-grid">
         <article class="sheet-card">
           <h3>Tasks tab</h3>
-          <p><strong>Columns:</strong> task_id, title, description, status, story_id, story_exempt, story_points, priority_label, priority_score, version, order_index, updated_at, updated_by</p>
+          <p><strong>Columns:</strong> task_id, title, description, status, story_id, story_exempt, story_points, priority_label, version, order_index, updated_at, updated_by</p>
         </article>
         <article class="sheet-card">
           <h3>Stories tab</h3>
@@ -762,7 +72,7 @@
         </article>
         <article class="sheet-card">
           <h3>Releases tab</h3>
-          <p><strong>Columns:</strong> version, release_date, is_active, notes</p>
+          <p><strong>Columns:</strong> version, release_date, is_active, is_upcoming, notes, release_notes_url</p>
         </article>
       </div>
     </section>
@@ -770,59 +80,120 @@
 
   <div id="taskModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
     <div class="modal">
-      <h2 id="taskModalTitle">Edit task</h2>
+      <h2 id="taskModalTitle">Task</h2>
       <form id="taskForm">
         <input id="taskIdInput" type="hidden">
+
         <div class="modal-grid">
-          <div class="control" style="grid-column: 1 / -1;">
+          <div class="control full-width">
             <label for="taskTitleInput">Title</label>
             <input id="taskTitleInput" type="text" required>
           </div>
-          <div class="control" style="grid-column: 1 / -1;">
+
+          <div class="control full-width">
             <label for="taskDescriptionInput">Description</label>
             <textarea id="taskDescriptionInput" placeholder="Optional context"></textarea>
           </div>
+
           <div class="control">
             <label for="taskStatusInput">Status</label>
             <select id="taskStatusInput"></select>
           </div>
+
           <div class="control">
             <label for="taskStoryInput">Story</label>
             <select id="taskStoryInput"></select>
           </div>
+
           <div class="control">
             <label for="taskPointsInput">Story points</label>
             <select id="taskPointsInput"></select>
           </div>
+
           <div class="control">
-            <label for="taskPriorityLabelInput">Priority label</label>
+            <label for="taskPriorityLabelInput">Priority</label>
             <select id="taskPriorityLabelInput"></select>
           </div>
-          <div class="control">
-            <label for="taskPriorityScoreInput">Priority score</label>
-            <input id="taskPriorityScoreInput" type="number" min="0" step="1">
-          </div>
+
           <div class="control">
             <label for="taskVersionInput">Version</label>
             <input id="taskVersionInput" type="text" placeholder="2.4.0">
           </div>
+
           <div class="checkbox-row">
             <input id="taskExemptInput" type="checkbox">
-            <label for="taskExemptInput" style="margin: 0;">Story assignment exempt</label>
+            <label for="taskExemptInput">Skip story requirement</label>
           </div>
         </div>
+
         <p id="taskFormError" class="modal-error" role="alert"></p>
+
         <div class="modal-actions">
           <button id="cancelTaskBtn" class="btn btn-soft" type="button">Cancel</button>
-          <button class="btn btn-primary" type="submit">Save task</button>
+          <button id="saveTaskBtn" class="btn btn-primary" type="submit">Save task</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="storyModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="storyModalTitle">
+    <div class="modal">
+      <h2 id="storyModalTitle">Add story</h2>
+      <form id="storyForm">
+        <div class="modal-grid">
+          <div class="control full-width">
+            <label for="storyTitleInput">Story title</label>
+            <input id="storyTitleInput" type="text" required>
+          </div>
+          <div class="control">
+            <label for="storyCategoryInput">Category</label>
+            <input id="storyCategoryInput" type="text" placeholder="Product, Security, ...">
+          </div>
+          <div class="control">
+            <label for="storyOwnerInput">Owner</label>
+            <input id="storyOwnerInput" type="text" placeholder="Team or person">
+          </div>
+        </div>
+
+        <p id="storyFormError" class="modal-error" role="alert"></p>
+
+        <div class="modal-actions">
+          <button id="cancelStoryBtn" class="btn btn-soft" type="button">Cancel</button>
+          <button class="btn btn-primary" type="submit">Create story</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="moveGuardModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="moveGuardModalTitle">
+    <div class="modal">
+      <h2 id="moveGuardModalTitle">Task needs story info</h2>
+      <p id="moveGuardText" class="modal-note"></p>
+
+      <div class="modal-grid">
+        <div class="control">
+          <label for="moveGuardStorySelect">Assign story before move</label>
+          <select id="moveGuardStorySelect"></select>
+        </div>
+        <div class="checkbox-row">
+          <input id="moveGuardSkipCheckbox" type="checkbox">
+          <label for="moveGuardSkipCheckbox">Skip story requirement for this task</label>
+        </div>
+      </div>
+
+      <p id="moveGuardError" class="modal-error" role="alert"></p>
+
+      <div class="modal-actions">
+        <button id="cancelMoveGuardBtn" class="btn btn-soft" type="button">Cancel</button>
+        <button id="confirmMoveGuardBtn" class="btn btn-primary" type="button">Continue</button>
+      </div>
     </div>
   </div>
 
   <div id="payloadModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="payloadModalTitle">
     <div class="modal">
       <h2 id="payloadModalTitle">Submit payload preview</h2>
+      <p class="modal-note">This payload is ready for Google Apps Script <code>doPost</code>.</p>
       <pre id="payloadPreview"></pre>
       <div class="modal-actions">
         <button id="closePayloadBtn" class="btn btn-soft" type="button">Close</button>
@@ -830,1087 +201,31 @@
     </div>
   </div>
 
+  <div id="loginModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+    <div class="modal narrow">
+      <h2 id="loginModalTitle">Login</h2>
+      <p class="modal-note">Demo auth only. Cookie keeps your local role session.</p>
+      <form id="loginForm">
+        <div class="control">
+          <label for="loginUsernameInput">Username</label>
+          <input id="loginUsernameInput" type="text" autocomplete="username" required>
+        </div>
+        <div class="control">
+          <label for="loginPasswordInput">Password</label>
+          <input id="loginPasswordInput" type="password" autocomplete="current-password" required>
+        </div>
+        <p id="loginError" class="modal-error" role="alert"></p>
+        <div class="modal-actions left">
+          <button id="logoutBtn" class="btn btn-soft" type="button">Logout</button>
+          <button id="cancelLoginBtn" class="btn btn-soft" type="button">Cancel</button>
+          <button class="btn btn-primary" type="submit">Login</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="toast" class="toast success" role="status" aria-live="polite"></div>
 
-  <script>
-    const STATUS_COLUMNS = [
-      { id: "submitted", label: "Submitted" },
-      { id: "backlog", label: "Backlog" },
-      { id: "in_progress", label: "In Progress" },
-      { id: "waiting_review", label: "Waiting for Review" },
-      { id: "completed", label: "Completed" }
-    ];
-
-    const PRIORITY_LABELS = ["P0", "P1", "P2", "P3"];
-    const STORY_POINT_VALUES = [1, 2, 3, 5, 8, 13];
-
-    /**
-     * Task shape
-     * id: string
-     * title: string
-     * description: string
-     * status: submitted|backlog|in_progress|waiting_review|completed
-     * storyId: string|null
-     * storyExempt: boolean
-     * storyPoints: 1|2|3|5|8|13|null
-     * priorityLabel: P0|P1|P2|P3
-     * priorityScore: number
-     * version: string
-     * order: number
-     * updatedAt: ISO string
-     */
-
-    /**
-     * Story shape
-     * storyId: string
-     * title: string
-     * category: string
-     * owner: string
-     * active: boolean
-     */
-
-    /**
-     * Release shape
-     * version: string
-     * releaseDate: ISO date
-     * isActive: boolean
-     * notes: string
-     */
-    const appState = {
-      tasks: [],
-      stories: [],
-      releases: [],
-      collapsedGroups: {},
-      filters: {
-        search: "",
-        status: "all",
-        story: "all"
-      },
-      unsavedChanges: false,
-      changedTaskIds: new Set(),
-      movedTaskIds: new Set(),
-      editedTaskIds: new Set(),
-      storiesChanged: new Set(),
-      dragContext: null
-    };
-
-    function loadSeedData() {
-      const stamp = "2026-02-12T09:00:00.000Z";
-      appState.stories = [
-        {
-          storyId: "STR-EMAIL-BRAND",
-          title: "Users need to brand their email templates",
-          category: "Customization",
-          owner: "Product",
-          active: true
-        },
-        {
-          storyId: "STR-BATCH-ROLLBACK",
-          title: "Admins need safer batch version rollbacks",
-          category: "Reliability",
-          owner: "Engineering",
-          active: true
-        },
-        {
-          storyId: "STR-ANALYTICS",
-          title: "Teams need visibility into rollout adoption",
-          category: "Insights",
-          owner: "Analytics",
-          active: true
-        },
-        {
-          storyId: "STR-AUTH",
-          title: "Users need smoother auth recovery",
-          category: "Trust",
-          owner: "Platform",
-          active: true
-        },
-        {
-          storyId: "STR-ONBOARD",
-          title: "New customers need guided onboarding",
-          category: "Growth",
-          owner: "Customer Success",
-          active: true
-        },
-        {
-          storyId: "STR-COMMS",
-          title: "Teams need release communication templates",
-          category: "Operations",
-          owner: "Operations",
-          active: true
-        }
-      ];
-
-      appState.releases = [
-        {
-          version: "2.4.0",
-          releaseDate: "2026-02-21",
-          isActive: true,
-          notes: "Batch-versioning release for the extension roadmap cycle."
-        },
-        {
-          version: "2.3.1",
-          releaseDate: "2026-01-28",
-          isActive: false,
-          notes: "Patch release."
-        }
-      ];
-
-      appState.tasks = [
-        {
-          id: "T-100",
-          title: "Triage extension feedback from support queue",
-          description: "Capture recurring user pain points before the next planning pass.",
-          status: "submitted",
-          storyId: null,
-          storyExempt: false,
-          storyPoints: null,
-          priorityLabel: "P1",
-          priorityScore: 18,
-          version: "2.4.0",
-          order: 1,
-          updatedAt: stamp
-        },
-        {
-          id: "T-101",
-          title: "Collect screenshots for broken Gmail rendering",
-          description: "Intake item from QA with no linked story yet.",
-          status: "submitted",
-          storyId: null,
-          storyExempt: false,
-          storyPoints: null,
-          priorityLabel: "P2",
-          priorityScore: 28,
-          version: "2.4.0",
-          order: 2,
-          updatedAt: stamp
-        },
-        {
-          id: "T-102",
-          title: "Draft copy options for first-run permission prompt",
-          description: "Content prep before assigning to onboarding story.",
-          status: "submitted",
-          storyId: null,
-          storyExempt: false,
-          storyPoints: null,
-          priorityLabel: "P2",
-          priorityScore: 30,
-          version: "2.4.0",
-          order: 3,
-          updatedAt: stamp
-        },
-        {
-          id: "T-103",
-          title: "Map onboarding tooltip sequence",
-          description: "Define where each tooltip appears in first session.",
-          status: "submitted",
-          storyId: "STR-ONBOARD",
-          storyExempt: false,
-          storyPoints: 3,
-          priorityLabel: "P2",
-          priorityScore: 22,
-          version: "2.4.0",
-          order: 1,
-          updatedAt: stamp
-        },
-        {
-          id: "T-104",
-          title: "Add brand color palette presets",
-          description: "Allow quick selection for email template branding.",
-          status: "backlog",
-          storyId: "STR-EMAIL-BRAND",
-          storyExempt: false,
-          storyPoints: 5,
-          priorityLabel: "P0",
-          priorityScore: 6,
-          version: "2.4.0",
-          order: 1,
-          updatedAt: stamp
-        },
-        {
-          id: "T-105",
-          title: "Support custom logo upload in template editor",
-          description: "Logo should persist for each workspace.",
-          status: "backlog",
-          storyId: "STR-EMAIL-BRAND",
-          storyExempt: false,
-          storyPoints: 8,
-          priorityLabel: "P0",
-          priorityScore: 8,
-          version: "2.4.0",
-          order: 2,
-          updatedAt: stamp
-        },
-        {
-          id: "T-106",
-          title: "Build rollback conflict warning copy",
-          description: "Warn admins when batches target stale versions.",
-          status: "backlog",
-          storyId: "STR-BATCH-ROLLBACK",
-          storyExempt: false,
-          storyPoints: 3,
-          priorityLabel: "P1",
-          priorityScore: 15,
-          version: "2.4.0",
-          order: 1,
-          updatedAt: stamp
-        },
-        {
-          id: "T-107",
-          title: "Implement email footer style preview",
-          description: "Live preview should mirror customer branding settings.",
-          status: "in_progress",
-          storyId: "STR-EMAIL-BRAND",
-          storyExempt: false,
-          storyPoints: 5,
-          priorityLabel: "P1",
-          priorityScore: 12,
-          version: "2.4.0",
-          order: 1,
-          updatedAt: stamp
-        },
-        {
-          id: "T-108",
-          title: "Create rollout adoption chart query",
-          description: "Prepare query so PM can filter adoption by version.",
-          status: "in_progress",
-          storyId: "STR-ANALYTICS",
-          storyExempt: false,
-          storyPoints: 5,
-          priorityLabel: "P1",
-          priorityScore: 14,
-          version: "2.4.0",
-          order: 1,
-          updatedAt: stamp
-        },
-        {
-          id: "T-109",
-          title: "QA batch rollback from 2.4.0 to 2.3.1",
-          description: "Verify rollback behavior with realistic test cohorts.",
-          status: "waiting_review",
-          storyId: "STR-BATCH-ROLLBACK",
-          storyExempt: false,
-          storyPoints: 8,
-          priorityLabel: "P0",
-          priorityScore: 7,
-          version: "2.4.0",
-          order: 1,
-          updatedAt: stamp
-        },
-        {
-          id: "T-110",
-          title: "Review magic-link fallback messaging",
-          description: "Security review needed before copy is finalized.",
-          status: "waiting_review",
-          storyId: "STR-AUTH",
-          storyExempt: false,
-          storyPoints: 3,
-          priorityLabel: "P2",
-          priorityScore: 24,
-          version: "2.4.0",
-          order: 1,
-          updatedAt: stamp
-        },
-        {
-          id: "T-111",
-          title: "Ship onboarding progress checklist",
-          description: "Checklist launched with basic analytics hooks.",
-          status: "completed",
-          storyId: "STR-ONBOARD",
-          storyExempt: false,
-          storyPoints: 5,
-          priorityLabel: "P2",
-          priorityScore: 32,
-          version: "2.4.0",
-          order: 1,
-          updatedAt: stamp
-        },
-        {
-          id: "T-112",
-          title: "Publish weekly rollout digest template",
-          description: "Template created for product and support sync.",
-          status: "completed",
-          storyId: "STR-COMMS",
-          storyExempt: true,
-          storyPoints: 2,
-          priorityLabel: "P3",
-          priorityScore: 40,
-          version: "2.4.0",
-          order: 1,
-          updatedAt: stamp
-        }
-      ];
-    }
-
-    function getActiveRelease() {
-      return appState.releases.find((item) => item.isActive) || null;
-    }
-
-    function getStoryById(storyId) {
-      return appState.stories.find((story) => story.storyId === storyId) || null;
-    }
-
-    function formatReleaseDate(isoDate) {
-      if (!isoDate) return "Date pending";
-      const date = new Date(isoDate);
-      return Number.isNaN(date.valueOf())
-        ? "Date pending"
-        : date.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-          });
-    }
-
-    function populateControlOptions() {
-      const statusFilter = document.getElementById("statusFilter");
-      const storyFilter = document.getElementById("storyFilter");
-      const taskStatusInput = document.getElementById("taskStatusInput");
-      const taskStoryInput = document.getElementById("taskStoryInput");
-      const taskPointsInput = document.getElementById("taskPointsInput");
-      const taskPriorityLabelInput = document.getElementById("taskPriorityLabelInput");
-
-      statusFilter.innerHTML = "";
-      const statusAllOption = document.createElement("option");
-      statusAllOption.value = "all";
-      statusAllOption.textContent = "All statuses";
-      statusFilter.append(statusAllOption);
-      STATUS_COLUMNS.forEach((column) => {
-        const option = document.createElement("option");
-        option.value = column.id;
-        option.textContent = column.label;
-        statusFilter.append(option);
-      });
-
-      storyFilter.innerHTML = "";
-      const storyAllOption = document.createElement("option");
-      storyAllOption.value = "all";
-      storyAllOption.textContent = "All stories";
-      storyFilter.append(storyAllOption);
-      const storyUnassignedOption = document.createElement("option");
-      storyUnassignedOption.value = "unassigned";
-      storyUnassignedOption.textContent = "Unassigned";
-      storyFilter.append(storyUnassignedOption);
-      appState.stories
-        .filter((story) => story.active)
-        .sort((a, b) => a.title.localeCompare(b.title))
-        .forEach((story) => {
-          const option = document.createElement("option");
-          option.value = story.storyId;
-          option.textContent = story.title;
-          storyFilter.append(option);
-        });
-
-      taskStatusInput.innerHTML = "";
-      STATUS_COLUMNS.forEach((column) => {
-        const option = document.createElement("option");
-        option.value = column.id;
-        option.textContent = column.label;
-        taskStatusInput.append(option);
-      });
-
-      taskStoryInput.innerHTML = "";
-      const noneOption = document.createElement("option");
-      noneOption.value = "";
-      noneOption.textContent = "Unassigned";
-      taskStoryInput.append(noneOption);
-      appState.stories
-        .filter((story) => story.active)
-        .sort((a, b) => a.title.localeCompare(b.title))
-        .forEach((story) => {
-          const option = document.createElement("option");
-          option.value = story.storyId;
-          option.textContent = story.title;
-          taskStoryInput.append(option);
-        });
-
-      taskPointsInput.innerHTML = "";
-      const pointsNoneOption = document.createElement("option");
-      pointsNoneOption.value = "";
-      pointsNoneOption.textContent = "Not estimated";
-      taskPointsInput.append(pointsNoneOption);
-      STORY_POINT_VALUES.forEach((points) => {
-        const option = document.createElement("option");
-        option.value = String(points);
-        option.textContent = String(points);
-        taskPointsInput.append(option);
-      });
-
-      taskPriorityLabelInput.innerHTML = "";
-      PRIORITY_LABELS.forEach((priorityLabel) => {
-        const option = document.createElement("option");
-        option.value = priorityLabel;
-        option.textContent = priorityLabel;
-        taskPriorityLabelInput.append(option);
-      });
-    }
-
-    function updateReleaseBanner() {
-      const activeRelease = getActiveRelease();
-      const releaseVersionEl = document.getElementById("releaseVersion");
-      const releaseDateEl = document.getElementById("releaseDate");
-      if (!activeRelease) {
-        releaseVersionEl.textContent = "No active release";
-        releaseDateEl.textContent = "Set an active row in Releases tab";
-        return;
-      }
-      releaseVersionEl.textContent = "v " + activeRelease.version + " release";
-      releaseDateEl.textContent = formatReleaseDate(activeRelease.releaseDate);
-    }
-
-    function getTaskSortValue(task) {
-      return [
-        Number(task.priorityScore) || 0,
-        Number(task.order) || 0,
-        Date.parse(task.updatedAt) || 0
-      ];
-    }
-
-    function compareTasks(a, b) {
-      const [aScore, aOrder, aDate] = getTaskSortValue(a);
-      const [bScore, bOrder, bDate] = getTaskSortValue(b);
-      if (aScore !== bScore) return aScore - bScore;
-      if (aOrder !== bOrder) return aOrder - bOrder;
-      return aDate - bDate;
-    }
-
-    function taskMatchesFilters(task) {
-      const search = appState.filters.search.trim().toLowerCase();
-      if (search) {
-        const storyTitle = task.storyId ? (getStoryById(task.storyId)?.title || "") : "";
-        const fullText = [task.title, task.description || "", storyTitle].join(" ").toLowerCase();
-        if (!fullText.includes(search)) {
-          return false;
-        }
-      }
-
-      const storyFilter = appState.filters.story;
-      if (storyFilter === "unassigned" && task.storyId) return false;
-      if (storyFilter !== "all" && storyFilter !== "unassigned" && task.storyId !== storyFilter) return false;
-
-      return true;
-    }
-
-    function getBucketTasks(status, storyId) {
-      return appState.tasks.filter((task) => task.status === status && (task.storyId || null) === (storyId || null));
-    }
-
-    function buildGroupsForColumn(status) {
-      const groups = [
-        {
-          storyId: null,
-          title: "Unassigned",
-          category: "Intake",
-          isUnassigned: true
-        }
-      ];
-
-      appState.stories
-        .filter((story) => story.active)
-        .sort((a, b) => {
-          const categoryResult = (a.category || "").localeCompare(b.category || "");
-          return categoryResult !== 0 ? categoryResult : a.title.localeCompare(b.title);
-        })
-        .forEach((story) => {
-          groups.push({
-            storyId: story.storyId,
-            title: story.title,
-            category: story.category || "General",
-            isUnassigned: false
-          });
-        });
-
-      if (appState.filters.story === "all") return groups;
-      if (appState.filters.story === "unassigned") return groups.filter((group) => group.storyId === null);
-      return groups.filter((group) => group.storyId === appState.filters.story);
-    }
-
-    function createTaskCard(task) {
-      const card = document.createElement("article");
-      card.className = "task-card";
-      card.draggable = true;
-      card.tabIndex = 0;
-      card.dataset.taskId = task.id;
-      card.dataset.priority = task.priorityLabel;
-      card.setAttribute("aria-label", task.title);
-
-      const title = document.createElement("h4");
-      title.className = "task-title";
-      title.textContent = task.title;
-
-      const description = document.createElement("p");
-      description.className = "task-description";
-      description.textContent = task.description || "No description provided.";
-
-      const badgeRow = document.createElement("div");
-      badgeRow.className = "badge-row";
-
-      const priorityBadge = document.createElement("span");
-      priorityBadge.className = "badge priority";
-      priorityBadge.textContent = task.priorityLabel + " / " + task.priorityScore;
-      badgeRow.append(priorityBadge);
-
-      const pointsBadge = document.createElement("span");
-      pointsBadge.className = "badge points";
-      pointsBadge.textContent = task.storyPoints ? task.storyPoints + " pts" : "No points";
-      badgeRow.append(pointsBadge);
-
-      const versionBadge = document.createElement("span");
-      versionBadge.className = "badge version";
-      versionBadge.textContent = "v " + task.version;
-      badgeRow.append(versionBadge);
-
-      if (task.storyExempt) {
-        const exemptBadge = document.createElement("span");
-        exemptBadge.className = "badge exempt";
-        exemptBadge.textContent = "Story exempt";
-        badgeRow.append(exemptBadge);
-      }
-
-      const actionRow = document.createElement("div");
-      actionRow.className = "card-actions";
-      const editBtn = document.createElement("button");
-      editBtn.type = "button";
-      editBtn.className = "text-btn";
-      editBtn.textContent = "Edit";
-      editBtn.addEventListener("click", () => openTaskModal(task.id));
-      actionRow.append(editBtn);
-
-      card.append(title, description, badgeRow, actionRow);
-
-      card.addEventListener("dragstart", handleCardDragStart);
-      card.addEventListener("dragend", handleCardDragEnd);
-      card.addEventListener("dblclick", () => openTaskModal(task.id));
-      card.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          openTaskModal(task.id);
-        }
-      });
-
-      return card;
-    }
-
-    function attachDropListeners(cardsContainer) {
-      cardsContainer.addEventListener("dragover", (event) => {
-        if (!appState.dragContext) return;
-        event.preventDefault();
-        const group = cardsContainer.closest(".story-group");
-        group.classList.add("drag-over");
-        const insertIndex = getInsertIndex(cardsContainer, event.clientY);
-        cardsContainer.dataset.insertIndex = String(insertIndex);
-        drawDropMarker(cardsContainer, insertIndex);
-      });
-
-      cardsContainer.addEventListener("dragleave", (event) => {
-        if (cardsContainer.contains(event.relatedTarget)) return;
-        const group = cardsContainer.closest(".story-group");
-        group.classList.remove("drag-over");
-        clearDropMarker(cardsContainer);
-      });
-
-      cardsContainer.addEventListener("drop", (event) => {
-        event.preventDefault();
-        const dragTaskId = appState.dragContext?.taskId;
-        if (!dragTaskId) return;
-        const status = cardsContainer.dataset.status;
-        const storyIdRaw = cardsContainer.dataset.storyId;
-        const storyId = storyIdRaw === "__unassigned" ? null : storyIdRaw;
-        const toIndex = Number(cardsContainer.dataset.insertIndex || 0);
-        onCardDrop(dragTaskId, status, storyId, toIndex);
-        const group = cardsContainer.closest(".story-group");
-        group.classList.remove("drag-over");
-        clearDropMarker(cardsContainer);
-      });
-    }
-
-    function drawDropMarker(cardsContainer, insertIndex) {
-      clearDropMarker(cardsContainer);
-      const marker = document.createElement("div");
-      marker.className = "drop-marker";
-      const cards = Array.from(cardsContainer.querySelectorAll(".task-card:not(.dragging)"));
-      if (insertIndex >= cards.length) {
-        cardsContainer.append(marker);
-      } else {
-        cardsContainer.insertBefore(marker, cards[insertIndex]);
-      }
-    }
-
-    function clearDropMarker(scope) {
-      const marker = scope.querySelector(".drop-marker");
-      if (marker) marker.remove();
-    }
-
-    function clearAllDropMarkers() {
-      document.querySelectorAll(".drop-marker").forEach((marker) => marker.remove());
-      document.querySelectorAll(".story-group.drag-over").forEach((group) => group.classList.remove("drag-over"));
-    }
-
-    function getInsertIndex(cardsContainer, cursorY) {
-      const cards = Array.from(cardsContainer.querySelectorAll(".task-card:not(.dragging)"));
-      for (let index = 0; index < cards.length; index += 1) {
-        const rect = cards[index].getBoundingClientRect();
-        if (cursorY < rect.top + rect.height / 2) return index;
-      }
-      return cards.length;
-    }
-
-    function handleCardDragStart(event) {
-      const card = event.currentTarget;
-      const taskId = card.dataset.taskId;
-      appState.dragContext = { taskId };
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", taskId);
-      card.classList.add("dragging");
-    }
-
-    function handleCardDragEnd(event) {
-      event.currentTarget.classList.remove("dragging");
-      appState.dragContext = null;
-      clearAllDropMarkers();
-    }
-
-    function reindexBucket(status, storyId) {
-      const tasks = getBucketTasks(status, storyId).sort((a, b) => (a.order || 0) - (b.order || 0));
-      tasks.forEach((task, index) => {
-        task.order = index + 1;
-      });
-    }
-
-    function registerStoryChange(oldStoryId, newStoryId) {
-      if (oldStoryId === newStoryId) return;
-      if (oldStoryId) appState.storiesChanged.add(oldStoryId);
-      if (newStoryId) appState.storiesChanged.add(newStoryId);
-    }
-
-    function markTaskDirty(taskId, type) {
-      appState.unsavedChanges = true;
-      appState.changedTaskIds.add(taskId);
-      if (type === "move") appState.movedTaskIds.add(taskId);
-      if (type === "edit") appState.editedTaskIds.add(taskId);
-      updateDirtyIndicator();
-    }
-
-    function onCardDrop(taskId, toStatus, toStoryId, toIndex) {
-      const task = appState.tasks.find((item) => item.id === taskId);
-      if (!task) return;
-
-      const fromStatus = task.status;
-      const fromStoryId = task.storyId || null;
-      const normalizedTargetStory = toStoryId || null;
-      const isSameBucket = fromStatus === toStatus && fromStoryId === normalizedTargetStory;
-
-      if (toStatus !== "submitted" && !task.storyExempt && !normalizedTargetStory) {
-        showToast("Story is required outside Submitted unless exempt.", true);
-        return;
-      }
-
-      const targetTasks = getBucketTasks(toStatus, normalizedTargetStory)
-        .filter((item) => item.id !== task.id)
-        .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-      const boundedIndex = Math.max(0, Math.min(Number(toIndex) || 0, targetTasks.length));
-      targetTasks.splice(boundedIndex, 0, task);
-
-      task.status = toStatus;
-      task.storyId = normalizedTargetStory;
-      task.updatedAt = new Date().toISOString();
-
-      targetTasks.forEach((item, index) => {
-        item.order = index + 1;
-      });
-
-      if (!isSameBucket) {
-        reindexBucket(fromStatus, fromStoryId);
-      }
-
-      registerStoryChange(fromStoryId, normalizedTargetStory);
-      markTaskDirty(task.id, "move");
-      renderBoard(appState);
-    }
-
-    function validateTask(task) {
-      const errors = [];
-      if (!task.title || !task.title.trim()) {
-        errors.push(task.id + ": title is required.");
-      }
-
-      if (task.status !== "submitted" && !task.storyExempt && !task.storyId) {
-        errors.push(task.id + ": story is required unless task is exempt.");
-      }
-
-      if (!PRIORITY_LABELS.includes(task.priorityLabel)) {
-        errors.push(task.id + ": priority label must be P0, P1, P2, or P3.");
-      }
-
-      if (!Number.isFinite(Number(task.priorityScore))) {
-        errors.push(task.id + ": priority score must be a number.");
-      }
-
-      if (task.storyPoints !== null && !STORY_POINT_VALUES.includes(Number(task.storyPoints))) {
-        errors.push(task.id + ": story points must be Fibonacci values.");
-      }
-
-      return errors;
-    }
-
-    function validateBoard(state) {
-      return state.tasks.flatMap(validateTask);
-    }
-
-    function buildSubmitPayload(state) {
-      const activeRelease = getActiveRelease();
-      return {
-        release: activeRelease,
-        releaseVersion: activeRelease?.version || null,
-        submittedAt: new Date().toISOString(),
-        tasks: [...state.tasks]
-          .sort((a, b) => {
-            const statusA = STATUS_COLUMNS.findIndex((column) => column.id === a.status);
-            const statusB = STATUS_COLUMNS.findIndex((column) => column.id === b.status);
-            if (statusA !== statusB) return statusA - statusB;
-            return compareTasks(a, b);
-          })
-          .map((task) => ({
-            task_id: task.id,
-            title: task.title,
-            description: task.description,
-            status: task.status,
-            story_id: task.storyId,
-            story_exempt: task.storyExempt,
-            story_points: task.storyPoints,
-            priority_label: task.priorityLabel,
-            priority_score: task.priorityScore,
-            version: task.version,
-            order_index: task.order,
-            updated_at: task.updatedAt
-          })),
-        storiesChanged: [...state.storiesChanged],
-        movedCards: [...state.movedTaskIds],
-        changes: [...new Set([...state.movedTaskIds, ...state.editedTaskIds])]
-      };
-    }
-
-    function sendPayloadPlaceholder(payload) {
-      console.log("POST /roadmap/sync placeholder payload", payload);
-    }
-
-    function openPayloadModal(payload) {
-      const payloadPreview = document.getElementById("payloadPreview");
-      payloadPreview.textContent = JSON.stringify(payload, null, 2);
-      document.getElementById("payloadModalBackdrop").classList.remove("hidden");
-    }
-
-    function closePayloadModal() {
-      document.getElementById("payloadModalBackdrop").classList.add("hidden");
-    }
-
-    function updateDirtyIndicator() {
-      const dirtyIndicator = document.getElementById("dirtyIndicator");
-      if (appState.unsavedChanges) {
-        dirtyIndicator.textContent = "Unsaved changes";
-        dirtyIndicator.classList.remove("clean");
-        dirtyIndicator.classList.add("dirty");
-      } else {
-        dirtyIndicator.textContent = "All changes synced";
-        dirtyIndicator.classList.remove("dirty");
-        dirtyIndicator.classList.add("clean");
-      }
-    }
-
-    let toastTimer = null;
-    function showToast(message, isError) {
-      const toast = document.getElementById("toast");
-      toast.textContent = message;
-      toast.classList.remove("success", "error");
-      toast.classList.add(isError ? "error" : "success");
-      toast.classList.add("show");
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => {
-        toast.classList.remove("show");
-      }, 2600);
-    }
-
-    function renderBoard(state) {
-      const board = document.getElementById("board");
-      board.innerHTML = "";
-
-      const columnsToRender =
-        state.filters.status === "all"
-          ? STATUS_COLUMNS
-          : STATUS_COLUMNS.filter((column) => column.id === state.filters.status);
-
-      columnsToRender.forEach((column) => {
-        const columnElement = document.createElement("section");
-        columnElement.className = "column";
-        columnElement.setAttribute("aria-label", column.label);
-
-        const header = document.createElement("header");
-        header.className = "column-header";
-
-        const title = document.createElement("h2");
-        title.className = "column-title";
-        title.textContent = column.label;
-
-        const count = state.tasks.filter((task) => task.status === column.id && taskMatchesFilters(task)).length;
-        const countBadge = document.createElement("span");
-        countBadge.className = "column-count";
-        countBadge.textContent = count + " visible";
-
-        header.append(title, countBadge);
-        columnElement.append(header);
-
-        const body = document.createElement("div");
-        body.className = "column-body";
-
-        buildGroupsForColumn(column.id).forEach((group) => {
-          const groupStoryId = group.storyId || null;
-          const storyKey = groupStoryId || "__unassigned";
-          const groupKey = column.id + "::" + storyKey;
-
-          const tasks = getBucketTasks(column.id, groupStoryId).filter(taskMatchesFilters).sort(compareTasks);
-
-          const details = document.createElement("details");
-          details.className = "story-group";
-          details.dataset.groupKey = groupKey;
-          details.dataset.status = column.id;
-          details.dataset.storyId = storyKey;
-
-          const hasPreference = Object.prototype.hasOwnProperty.call(appState.collapsedGroups, groupKey);
-          details.open = hasPreference ? !appState.collapsedGroups[groupKey] : tasks.length > 0;
-
-          details.addEventListener("toggle", () => {
-            appState.collapsedGroups[groupKey] = !details.open;
-          });
-
-          const summary = document.createElement("summary");
-          const summaryMain = document.createElement("span");
-          summaryMain.className = "summary-main";
-
-          const summaryTitle = document.createElement("strong");
-          summaryTitle.textContent = group.title;
-          summaryMain.append(summaryTitle);
-
-          const summaryMeta = document.createElement("span");
-          summaryMeta.className = "summary-meta";
-          if (group.category) {
-            const categoryTag = document.createElement("span");
-            categoryTag.className = "category-tag";
-            categoryTag.textContent = group.category;
-            summaryMeta.append(categoryTag);
-          }
-          summaryMain.append(summaryMeta);
-
-          const countText = document.createElement("span");
-          countText.className = "column-count";
-          countText.textContent = String(tasks.length);
-
-          summary.append(summaryMain, countText);
-          details.append(summary);
-
-          const cardsContainer = document.createElement("div");
-          cardsContainer.className = "group-cards";
-          cardsContainer.dataset.status = column.id;
-          cardsContainer.dataset.storyId = storyKey;
-
-          attachDropListeners(cardsContainer);
-
-          if (tasks.length === 0) {
-            const empty = document.createElement("p");
-            empty.className = "group-empty";
-            empty.textContent = "Drop a task here or edit a card to assign it.";
-            cardsContainer.append(empty);
-          } else {
-            tasks.forEach((task) => cardsContainer.append(createTaskCard(task)));
-          }
-
-          details.append(cardsContainer);
-          body.append(details);
-        });
-
-        columnElement.append(body);
-        board.append(columnElement);
-      });
-    }
-
-    function openTaskModal(taskId) {
-      const task = appState.tasks.find((item) => item.id === taskId);
-      if (!task) return;
-
-      document.getElementById("taskIdInput").value = task.id;
-      document.getElementById("taskTitleInput").value = task.title;
-      document.getElementById("taskDescriptionInput").value = task.description || "";
-      document.getElementById("taskStatusInput").value = task.status;
-      document.getElementById("taskStoryInput").value = task.storyId || "";
-      document.getElementById("taskPointsInput").value = task.storyPoints ? String(task.storyPoints) : "";
-      document.getElementById("taskPriorityLabelInput").value = task.priorityLabel;
-      document.getElementById("taskPriorityScoreInput").value = String(task.priorityScore);
-      document.getElementById("taskVersionInput").value = task.version;
-      document.getElementById("taskExemptInput").checked = !!task.storyExempt;
-      document.getElementById("taskFormError").textContent = "";
-
-      document.getElementById("taskModalBackdrop").classList.remove("hidden");
-      document.getElementById("taskTitleInput").focus();
-    }
-
-    function closeTaskModal() {
-      document.getElementById("taskModalBackdrop").classList.add("hidden");
-      document.getElementById("taskFormError").textContent = "";
-    }
-
-    function saveTaskFromModal(event) {
-      event.preventDefault();
-      const taskId = document.getElementById("taskIdInput").value;
-      const task = appState.tasks.find((item) => item.id === taskId);
-      if (!task) return;
-
-      const nextTitle = document.getElementById("taskTitleInput").value.trim();
-      const nextDescription = document.getElementById("taskDescriptionInput").value.trim();
-      const nextStatus = document.getElementById("taskStatusInput").value;
-      const nextStoryId = document.getElementById("taskStoryInput").value || null;
-      const nextPointsRaw = document.getElementById("taskPointsInput").value;
-      const nextStoryPoints = nextPointsRaw ? Number(nextPointsRaw) : null;
-      const nextPriorityLabel = document.getElementById("taskPriorityLabelInput").value;
-      const nextPriorityScore = Number(document.getElementById("taskPriorityScoreInput").value);
-      const nextVersion = document.getElementById("taskVersionInput").value.trim() || "2.4.0";
-      const nextExempt = document.getElementById("taskExemptInput").checked;
-
-      const errorEl = document.getElementById("taskFormError");
-      errorEl.textContent = "";
-
-      if (!nextTitle) {
-        errorEl.textContent = "Title is required.";
-        return;
-      }
-
-      if (nextStatus !== "submitted" && !nextExempt && !nextStoryId) {
-        errorEl.textContent = "Story is required outside Submitted unless exempt.";
-        return;
-      }
-
-      if (!PRIORITY_LABELS.includes(nextPriorityLabel)) {
-        errorEl.textContent = "Priority label is invalid.";
-        return;
-      }
-
-      if (!Number.isFinite(nextPriorityScore)) {
-        errorEl.textContent = "Priority score must be numeric.";
-        return;
-      }
-
-      if (nextStoryPoints !== null && !STORY_POINT_VALUES.includes(nextStoryPoints)) {
-        errorEl.textContent = "Story points must use 1, 2, 3, 5, 8, or 13.";
-        return;
-      }
-
-      const oldStatus = task.status;
-      const oldStoryId = task.storyId || null;
-
-      task.title = nextTitle;
-      task.description = nextDescription;
-      task.status = nextStatus;
-      task.storyId = nextStoryId;
-      task.storyPoints = nextStoryPoints;
-      task.priorityLabel = nextPriorityLabel;
-      task.priorityScore = nextPriorityScore;
-      task.version = nextVersion;
-      task.storyExempt = nextExempt;
-      task.updatedAt = new Date().toISOString();
-
-      registerStoryChange(oldStoryId, task.storyId || null);
-      if (oldStatus !== task.status || oldStoryId !== (task.storyId || null)) {
-        task.order = getBucketTasks(task.status, task.storyId || null)
-          .filter((item) => item.id !== task.id)
-          .length + 1;
-      }
-
-      if (oldStatus !== task.status || oldStoryId !== (task.storyId || null)) {
-        markTaskDirty(task.id, "move");
-      } else {
-        markTaskDirty(task.id, "edit");
-      }
-
-      reindexBucket(oldStatus, oldStoryId);
-      reindexBucket(task.status, task.storyId || null);
-      closeTaskModal();
-      renderBoard(appState);
-      showToast("Task updated.", false);
-    }
-
-    function clearChangeSets() {
-      appState.changedTaskIds.clear();
-      appState.movedTaskIds.clear();
-      appState.editedTaskIds.clear();
-      appState.storiesChanged.clear();
-    }
-
-    function handleSubmit() {
-      const errors = validateBoard(appState);
-      if (errors.length > 0) {
-        showToast("Fix validation errors before submitting.", true);
-        openPayloadModal({
-          errors,
-          hint: "Resolve these tasks, then submit again."
-        });
-        return;
-      }
-
-      const payload = buildSubmitPayload(appState);
-      sendPayloadPlaceholder(payload);
-      openPayloadModal(payload);
-      appState.unsavedChanges = false;
-      clearChangeSets();
-      updateDirtyIndicator();
-      showToast("Payload prepared. Wire POST /roadmap/sync next.", false);
-    }
-
-    function bindGlobalEvents() {
-      document.getElementById("searchInput").addEventListener("input", (event) => {
-        appState.filters.search = event.target.value;
-        renderBoard(appState);
-      });
-
-      document.getElementById("statusFilter").addEventListener("change", (event) => {
-        appState.filters.status = event.target.value;
-        renderBoard(appState);
-      });
-
-      document.getElementById("storyFilter").addEventListener("change", (event) => {
-        appState.filters.story = event.target.value;
-        renderBoard(appState);
-      });
-
-      document.getElementById("submitBtn").addEventListener("click", handleSubmit);
-
-      document.getElementById("taskForm").addEventListener("submit", saveTaskFromModal);
-      document.getElementById("cancelTaskBtn").addEventListener("click", closeTaskModal);
-      document.getElementById("closePayloadBtn").addEventListener("click", closePayloadModal);
-
-      document.getElementById("taskModalBackdrop").addEventListener("click", (event) => {
-        if (event.target.id === "taskModalBackdrop") closeTaskModal();
-      });
-
-      document.getElementById("payloadModalBackdrop").addEventListener("click", (event) => {
-        if (event.target.id === "payloadModalBackdrop") closePayloadModal();
-      });
-
-      document.addEventListener("keydown", (event) => {
-        if (event.key !== "Escape") return;
-        closeTaskModal();
-        closePayloadModal();
-      });
-    }
-
-    function init() {
-      loadSeedData();
-      populateControlOptions();
-      updateReleaseBanner();
-      updateDirtyIndicator();
-      bindGlobalEvents();
-      renderBoard(appState);
-    }
-
-    init();
-  </script>
+  <script src="app.js" defer></script>
 </body>
 </html>
