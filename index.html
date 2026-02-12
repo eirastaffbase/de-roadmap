@@ -100,6 +100,15 @@
       </div>
     </section>
 
+    <section id="authGate" class="auth-gate hidden" aria-live="polite">
+      <h2>Login required</h2>
+      <p>Viewer access or higher is required to view the roadmap.</p>
+      <button id="authGateLoginBtn" class="btn btn-primary" type="button">
+        <svg class="btn-icon" aria-hidden="true"><use href="#icon-login"></use></svg>
+        <span class="btn-label">Login to continue</span>
+      </button>
+    </section>
+
     <main id="board" class="board" aria-label="Roadmap board"></main>
   </div>
 
@@ -241,7 +250,6 @@
   <div id="loginModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
     <div class="modal narrow">
       <h2 id="loginModalTitle">Login</h2>
-      <p class="modal-note">Demo auth only. Cookie keeps your local role session.</p>
       <form id="loginForm">
         <div class="control">
           <label for="loginUsernameInput">Username</label>

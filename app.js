@@ -25,7 +25,7 @@ const DEMO_USERS = {
     role: "editor"
   },
   ishaan: {
-    password: "demoengineer",
+    password: "semanager",
     role: "editor"
   },
   seteam: {
@@ -112,6 +112,8 @@ const dom = {};
 
 function cacheDom() {
   dom.appShell = document.getElementById("appShell");
+  dom.authGate = document.getElementById("authGate");
+  dom.authGateLoginBtn = document.getElementById("authGateLoginBtn");
   dom.searchInput = document.getElementById("searchInput");
   dom.statusFilter = document.getElementById("statusFilter");
   dom.storyFilter = document.getElementById("storyFilter");
@@ -192,6 +194,10 @@ function nowIso() {
 
 function getPermissions() {
   return ROLE_PERMISSIONS[appState.auth.role] || ROLE_PERMISSIONS.guest;
+}
+
+function canViewRoadmap() {
+  return appState.auth.role !== "guest";
 }
 
 function loadSeedData() {
@@ -708,17 +714,26 @@ function saveAuthCookie() {
 function renderAuthUi() {
   const role = appState.auth.role;
   const permission = getPermissions();
+  const canView = canViewRoadmap();
   if (role === "guest") {
     dom.loginIconText.textContent = "Login";
-    dom.authStatus.textContent = "Viewing as guest";
+    dom.authStatus.textContent = "Login required";
   } else {
     dom.loginIconText.textContent = "Account";
     dom.authStatus.textContent = appState.auth.username + " · " + permission.label;
   }
 
+  if (dom.appShell) {
+    dom.appShell.classList.toggle("locked", !canView);
+  }
+  if (dom.authGate) {
+    dom.authGate.classList.toggle("hidden", canView);
+  }
+
   dom.addTaskBtn.disabled = !permission.canAddTask;
   dom.addStoryBtn.disabled = !permission.canAddStory;
   dom.submitBtn.disabled = !permission.canSubmit;
+  dom.refreshDataBtn.disabled = !canView;
 
   dom.addTaskBtn.title = permission.canAddTask
     ? permission.addTaskSubmittedOnly
@@ -1209,6 +1224,7 @@ function buildGroupsForQuarter(quarter) {
 
 function renderBoard() {
   dom.board.innerHTML = "";
+  if (!canViewRoadmap()) return;
   const permissions = getPermissions();
 
   const isQuarterView = appState.filters.viewMode === "quarter";
@@ -2042,7 +2058,7 @@ function closeLoginModal() {
   closeModal(dom.loginModalBackdrop);
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
   clearAuthError();
 
@@ -2063,6 +2079,12 @@ function handleLogin(event) {
   saveAuthCookie();
   renderAuthUi();
   closeLoginModal();
+  await fetchRoadmapFromBackend({
+    showSuccessToast: false,
+    failSilently: true,
+    useBusyState: true
+  });
+  populateOptions();
   renderBoard();
   showToast("Logged in as " + username + ".", false);
 }
@@ -2136,6 +2158,9 @@ function bindEvents() {
   dom.confirmMoveGuardBtn.addEventListener("click", confirmMoveGuard);
 
   dom.loginIconBtn.addEventListener("click", openLoginModal);
+  if (dom.authGateLoginBtn) {
+    dom.authGateLoginBtn.addEventListener("click", openLoginModal);
+  }
   dom.loginForm.addEventListener("submit", handleLogin);
   dom.cancelLoginBtn.addEventListener("click", closeLoginModal);
   dom.logoutBtn.addEventListener("click", logout);
@@ -2172,11 +2197,13 @@ async function init() {
   bindEvents();
   renderBoard();
 
-  await fetchRoadmapFromBackend({
-    showSuccessToast: false,
-    failSilently: true,
-    useBusyState: false
-  });
+  if (canViewRoadmap()) {
+    await fetchRoadmapFromBackend({
+      showSuccessToast: false,
+      failSilently: true,
+      useBusyState: false
+    });
+  }
   setBusyState(false);
 }
 
