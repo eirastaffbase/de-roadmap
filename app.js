@@ -15,9 +15,9 @@ const RELEASE_NOTES_URL =
 
 const API_CONFIG = {
   syncUrl:
-    "https://script.google.com/macros/s/AKfycbywXAVhC0LwXb6n3cUmwpdzphprdsZWxIVeMyP7t9FhyAbNVTMBZ7QKGZrwuZBj_vp4RQ/exec",
+    "https://script.google.com/macros/s/AKfycbwS3hZEYoo34kBz7F-E_vcVRfBWZS4tkqsjO2-rI-LzWVaRm1-X6CVOok7gurdPB6eq/exec",
   getUrl:
-    "https://script.google.com/macros/s/AKfycbywXAVhC0LwXb6n3cUmwpdzphprdsZWxIVeMyP7t9FhyAbNVTMBZ7QKGZrwuZBj_vp4RQ/exec"
+    "https://script.google.com/macros/s/AKfycbwS3hZEYoo34kBz7F-E_vcVRfBWZS4tkqsjO2-rI-LzWVaRm1-X6CVOok7gurdPB6eq/exec"
 };
 
 const DEMO_USERS = {
@@ -398,11 +398,9 @@ function applyRemoteRoadmapData(payload) {
   const remoteReleases = Array.isArray(payload.releases) ? payload.releases : [];
 
   const mappedStories = remoteStories.map(normalizeRemoteStory).filter((story) => story.storyId);
-  const storyIds = new Set(mappedStories.map((story) => story.storyId));
   const mappedTasks = remoteTasks
     .map(normalizeRemoteTask)
-    .filter((task) => task.id && task.title)
-    .filter((task) => !task.storyId || storyIds.has(task.storyId));
+    .filter((task) => task.id && task.title);
   const mappedReleases = remoteReleases
     .map(normalizeRemoteRelease)
     .filter((release) => release.version);
@@ -1552,6 +1550,17 @@ function buildSubmitPayload() {
         order_index: task.order,
         updated_at: task.updatedAt,
         updated_by: task.updatedBy || appState.auth.username || "guest"
+      })),
+    stories: [...appState.stories]
+      .filter((story) => story.storyId)
+      .map((story) => ({
+        story_id: story.storyId,
+        story_title: story.title,
+        category: story.category || "",
+        owner: story.owner || "",
+        active: story.active !== false,
+        created_at: story.createdAt || nowIso(),
+        updated_at: story.updatedAt || nowIso()
       })),
     storiesChanged: [...appState.storiesChanged],
     movedCards: [...appState.movedTaskIds],

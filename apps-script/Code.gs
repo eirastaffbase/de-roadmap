@@ -6,19 +6,6 @@ const SHEET_NAMES = {
 const DEFAULT_VERSION = "2.4.0";
 const IDEMPOTENCY_TTL_SECONDS = 600;
 const ROADMAP_SPREADSHEET_ID = "1SuKtz34cMQLCUIJtDyQs6ivkvsfpbYkrGeqq8poEsp8";
-const FEEDBACK_SOURCE = {
-  SPREADSHEET_ID: "1uuCv5GQyY93nwVUKH6_C2TbJXkL_3pwTjqmt7s5HL3Q",
-  SHEET_ID: 2033660287,
-  HEADER_ROW: 1,
-  FIRST_DATA_ROW: 2,
-  TIMESTAMP_COL: 1,
-  VERSION_COL: 2,
-  FEEDBACK_COL: 3,
-  EMAIL_COL: 4
-};
-const SCRIPT_PROPERTIES = {
-  LAST_FEEDBACK_ROW: "feedback_last_imported_row"
-};
 
 const HEADERS = {
   Tasks: [
@@ -133,18 +120,7 @@ function doPost(e) {
     const payload = parsePayload_(e);
     const action = payload.action || "sync";
 
-    if (action === "sync_feedback") {
-      const feedbackResult = syncFeedbackSubmissions_();
-      return jsonResponse_({
-        ok: true,
-        message: "Feedback sync complete",
-        imported: feedbackResult.imported,
-        scannedRows: feedbackResult.scannedRows,
-        lastImportedRow: feedbackResult.lastImportedRow
-      });
-    }
-
-    if (action !== "sync") {
+    if (action !== "sync" && action !== "sync_feedback") {
       return jsonResponse_({ ok: false, error: "Unsupported action: " + action });
     }
 
@@ -168,25 +144,42 @@ function doPost(e) {
     }
 
     const ss = getRoadmapSpreadsheet_();
-    ensureSheetWithHeaders_(ss, SHEET_NAMES.TASKS, HEADERS.Tasks);
-    ensureSheetWithHeaders_(ss, SHEET_NAMES.STORIES, HEADERS.Stories);
-    ensureSheetWithHeaders_(ss, SHEET_NAMES.RELEASES, HEADERS.Releases);
 
-    const writtenTasks = writeTasksSnapshot_(ss, payload.tasks || []);
+    let responseBody;
+    if (action === "sync_feedback") {
+      const feedbackResult = appendFeedbackTaskFromPayload_(ss, payload);
+      responseBody = {
+        ok: true,
+        message: "Feedback sync complete",
+        imported: feedbackResult.imported,
+        taskId: feedbackResult.taskId,
+        submittedAt: new Date().toISOString(),
+        idempotencyKey: idempotencyKey || null
+      };
+    } else {
+      ensureSheetWithHeaders_(ss, SHEET_NAMES.TASKS, HEADERS.Tasks);
+      ensureSheetWithHeaders_(ss, SHEET_NAMES.STORIES, HEADERS.Stories);
+      ensureSheetWithHeaders_(ss, SHEET_NAMES.RELEASES, HEADERS.Releases);
 
-    if (payload.release && payload.release.version) {
-      upsertRelease_(ss, payload.release);
+      const writtenTasks = upsertTasks_(ss, payload.tasks || []);
+      const writtenStories = upsertStories_(ss, payload.stories || []);
+
+      if (payload.release && payload.release.version) {
+        upsertRelease_(ss, payload.release);
+      }
+
+      responseBody = {
+        ok: true,
+        message: "Sync complete",
+        taskCount: writtenTasks,
+        storyCount: writtenStories,
+        storiesChanged: (payload.storiesChanged || []).length,
+        movedCards: (payload.movedCards || []).length,
+        submittedAt: payload.submittedAt || new Date().toISOString(),
+        idempotencyKey: idempotencyKey || null
+      };
     }
 
-    const responseBody = {
-      ok: true,
-      message: "Sync complete",
-      taskCount: writtenTasks,
-      storiesChanged: (payload.storiesChanged || []).length,
-      movedCards: (payload.movedCards || []).length,
-      submittedAt: payload.submittedAt || new Date().toISOString(),
-      idempotencyKey: idempotencyKey || null
-    };
     if (cache && cacheKey) {
       cache.put(cacheKey, JSON.stringify(responseBody), IDEMPOTENCY_TTL_SECONDS);
     }
@@ -258,100 +251,46 @@ function parseFormEncoded_(raw) {
   return result;
 }
 
-function syncFeedbackToRoadmap() {
-  const result = syncFeedbackSubmissions_();
-  Logger.log(JSON.stringify(result));
-  return result;
-}
+function appendFeedbackTaskFromPayload_(ss, payload) {
+  ensureSheetWithHeaders_(ss, SHEET_NAMES.TASKS, HEADERS.Tasks);
 
-function resetFeedbackSyncCursor() {
-  PropertiesService.getScriptProperties().deleteProperty(SCRIPT_PROPERTIES.LAST_FEEDBACK_ROW);
-  return { ok: true, message: "Feedback sync cursor reset." };
-}
-
-function syncFeedbackSubmissions_() {
-  const roadmapSs = getRoadmapSpreadsheet_();
-  const feedbackSheet = getFeedbackSheet_();
-  const props = PropertiesService.getScriptProperties();
-  const lastImportedRow = Number(
-    props.getProperty(SCRIPT_PROPERTIES.LAST_FEEDBACK_ROW) || String(FEEDBACK_SOURCE.HEADER_ROW)
-  );
-  const firstDataRow = FEEDBACK_SOURCE.FIRST_DATA_ROW;
-  const sourceLastRow = feedbackSheet.getLastRow();
-  const startRow = Math.max(firstDataRow, lastImportedRow + 1);
-
-  if (sourceLastRow < startRow) {
-    return {
-      imported: 0,
-      scannedRows: 0,
-      lastImportedRow: lastImportedRow
-    };
+  const feedbackText = cleanCell_(payload.feedback || payload.feedbackText);
+  const submitterEmail = cleanCell_(payload.email || payload.submitterEmail);
+  if (!feedbackText && !submitterEmail) {
+    throw new Error("Feedback payload must include feedback text or submitter email.");
   }
 
-  const maxCol = Math.max(
-    FEEDBACK_SOURCE.TIMESTAMP_COL,
-    FEEDBACK_SOURCE.VERSION_COL,
-    FEEDBACK_SOURCE.FEEDBACK_COL,
-    FEEDBACK_SOURCE.EMAIL_COL
-  );
-  const rowCount = sourceLastRow - startRow + 1;
-  const rows = feedbackSheet.getRange(startRow, 1, rowCount, maxCol).getValues();
+  const version = normalizeVersion_(payload.version || payload.replifyVersion);
+  const timestamp = normalizeIsoDate_(payload.timestamp || payload.submittedAt);
+  const taskId = createFeedbackTaskId_(payload.feedbackId || payload.submissionId);
+  const nextSubmittedOrder = getNextSubmittedOrder_(ss) + 1;
 
-  const existingTasks = readRecords_(roadmapSs, SHEET_NAMES.TASKS, HEADERS.Tasks);
-  let nextSubmittedOrder = existingTasks.reduce((maxValue, task) => {
+  const row = [[
+    taskId,
+    "Feedback Form Submission",
+    buildFeedbackDescription_(feedbackText, submitterEmail),
+    "submitted",
+    "",
+    "",
+    "",
+    "",
+    version,
+    nextSubmittedOrder,
+    timestamp,
+    "feedback-form",
+    ""
+  ]];
+
+  appendTaskRows_(ss, row);
+  return { imported: 1, taskId: taskId };
+}
+
+function getNextSubmittedOrder_(ss) {
+  const existingTasks = readRecords_(ss, SHEET_NAMES.TASKS, HEADERS.Tasks);
+  return existingTasks.reduce((maxValue, task) => {
     if (String(task.status) !== "submitted") return maxValue;
     return Math.max(maxValue, Number(task.order_index) || 0);
   }, 0);
-
-  const taskRows = [];
-  rows.forEach((row, index) => {
-    const rowNumber = startRow + index;
-    const timestampRaw = row[FEEDBACK_SOURCE.TIMESTAMP_COL - 1];
-    const versionRaw = row[FEEDBACK_SOURCE.VERSION_COL - 1];
-    const feedbackRaw = row[FEEDBACK_SOURCE.FEEDBACK_COL - 1];
-    const emailRaw = row[FEEDBACK_SOURCE.EMAIL_COL - 1];
-
-    const feedbackText = cleanCell_(feedbackRaw);
-    const submitterEmail = cleanCell_(emailRaw);
-    if (!feedbackText && !submitterEmail) {
-      return;
-    }
-
-    nextSubmittedOrder += 1;
-    taskRows.push([
-      createFeedbackTaskId_(rowNumber),
-      "Feedback Form Submission",
-      buildFeedbackDescription_(feedbackText, submitterEmail),
-      "submitted",
-      "",
-      "",
-      "",
-      "",
-      normalizeVersion_(versionRaw),
-      nextSubmittedOrder,
-      normalizeIsoDate_(timestampRaw),
-      "feedback-form",
-      ""
-    ]);
-  });
-
-  appendTaskRows_(roadmapSs, taskRows);
-  props.setProperty(SCRIPT_PROPERTIES.LAST_FEEDBACK_ROW, String(sourceLastRow));
-
-  return {
-    imported: taskRows.length,
-    scannedRows: rowCount,
-    lastImportedRow: sourceLastRow
-  };
-}
-
-function getFeedbackSheet_() {
-  const feedbackSs = SpreadsheetApp.openById(FEEDBACK_SOURCE.SPREADSHEET_ID);
-  const byId = feedbackSs
-    .getSheets()
-    .find((sheet) => sheet.getSheetId() === FEEDBACK_SOURCE.SHEET_ID);
-  if (byId) return byId;
-  return feedbackSs.getSheets()[0];
 }
 
 function appendTaskRows_(ss, taskRows) {
@@ -362,8 +301,17 @@ function appendTaskRows_(ss, taskRows) {
   sheet.getRange(startRow, 1, taskRows.length, HEADERS.Tasks.length).setValues(taskRows);
 }
 
-function createFeedbackTaskId_(rowNumber) {
-  return "FB-" + String(rowNumber) + "-" + Utilities.getUuid().slice(0, 8);
+function createFeedbackTaskId_(sourceId) {
+  const prefix = "FB";
+  const sanitized = String(sourceId || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  if (sanitized) {
+    return prefix + "-" + sanitized + "-" + Utilities.getUuid().slice(0, 6);
+  }
+  return prefix + "-" + Utilities.getUuid().slice(0, 12);
 }
 
 function buildFeedbackDescription_(feedbackText, submitterEmail) {
@@ -416,35 +364,108 @@ function readRecords_(ss, sheetName, headers) {
   });
 }
 
-function writeTasksSnapshot_(ss, tasks) {
+function upsertTasks_(ss, tasks) {
   const sheet = ss.getSheetByName(SHEET_NAMES.TASKS);
   const headers = HEADERS.Tasks;
-
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
   if (!tasks.length) {
     return 0;
   }
 
-  const rows = tasks.map((task) => [
-    task.task_id || "",
-    task.title || "",
-    task.description || "",
-    task.status || "submitted",
-    task.story_id || "",
-    normalizeBool_(task.story_exempt),
-    task.story_points === null || task.story_points === undefined ? "" : Number(task.story_points),
-    task.priority_label || "P2",
-    normalizeVersion_(task.version),
-    task.order_index === undefined || task.order_index === null ? "" : Number(task.order_index),
-    task.updated_at || "",
-    task.updated_by || "",
-    task.quarter || "Q1 2026"
-  ]);
+  const existingRecords = readRecords_(ss, SHEET_NAMES.TASKS, headers);
+  const rowIndexById = {};
+  existingRecords.forEach((row, index) => {
+    const id = String(row.task_id || "").trim();
+    if (!id) return;
+    rowIndexById[id] = index + 2;
+  });
 
-  sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
-  return rows.length;
+  let updated = 0;
+  const toAppend = [];
+
+  tasks.forEach((task) => {
+    const taskId = String(task.task_id || "").trim();
+    if (!taskId) return;
+    const rowValues = [
+      taskId,
+      task.title || "",
+      task.description || "",
+      task.status || "submitted",
+      task.story_id || "",
+      normalizeBool_(task.story_exempt),
+      task.story_points === null || task.story_points === undefined ? "" : Number(task.story_points),
+      task.priority_label || "P2",
+      normalizeVersion_(task.version),
+      task.order_index === undefined || task.order_index === null ? "" : Number(task.order_index),
+      task.updated_at || "",
+      task.updated_by || "",
+      task.quarter || "Q1 2026"
+    ];
+
+    const existingRowIndex = rowIndexById[taskId];
+    if (existingRowIndex) {
+      sheet.getRange(existingRowIndex, 1, 1, headers.length).setValues([rowValues]);
+      updated += 1;
+    } else {
+      toAppend.push(rowValues);
+    }
+  });
+
+  if (toAppend.length) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, headers.length).setValues(toAppend);
+  }
+
+  return updated + toAppend.length;
+}
+
+function upsertStories_(ss, stories) {
+  const sheet = ss.getSheetByName(SHEET_NAMES.STORIES);
+  const headers = HEADERS.Stories;
+  if (!stories.length) return 0;
+
+  const existingRecords = readRecords_(ss, SHEET_NAMES.STORIES, headers);
+  const rowIndexById = {};
+  const existingById = {};
+  existingRecords.forEach((row, index) => {
+    const storyId = String(row.story_id || "").trim();
+    if (!storyId) return;
+    rowIndexById[storyId] = index + 2;
+    existingById[storyId] = row;
+  });
+
+  let updated = 0;
+  const toAppend = [];
+  const now = new Date().toISOString();
+
+  stories.forEach((story) => {
+    const storyId = String(story.story_id || story.storyId || "").trim();
+    if (!storyId) return;
+
+    const existing = existingById[storyId] || {};
+    const rowValues = [
+      storyId,
+      story.story_title || story.title || existing.story_title || "",
+      story.category || existing.category || "",
+      story.owner || existing.owner || "",
+      normalizeBool_(story.active !== undefined ? story.active : existing.active),
+      story.created_at || story.createdAt || existing.created_at || now,
+      story.updated_at || story.updatedAt || now
+    ];
+
+    const existingRowIndex = rowIndexById[storyId];
+    if (existingRowIndex) {
+      sheet.getRange(existingRowIndex, 1, 1, headers.length).setValues([rowValues]);
+      updated += 1;
+    } else {
+      toAppend.push(rowValues);
+    }
+  });
+
+  if (toAppend.length) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, headers.length).setValues(toAppend);
+  }
+
+  return updated + toAppend.length;
 }
 
 function upsertRelease_(ss, release) {
