@@ -8,16 +8,15 @@ const STATUS_COLUMNS = [
 const PRIORITY_LABELS = ["P0", "P1", "P2", "P3"];
 const STORY_POINT_VALUES = [1, 2, 3, 5, 8, 13];
 const QUARTER_OPTIONS = ["Q1 2026", "Q2 2026", "Q3 2026", "Q4 2026"];
-const DEFAULT_VERSION = "2.4.0";
 
 const RELEASE_NOTES_URL =
   "https://docs.google.com/document/d/14iV4lUkYHuHv5VY3MPiIXDdRx_8SOY5Ml1M-gSPqvRY/edit?usp=sharing";
 
 const API_CONFIG = {
   syncUrl:
-    "https://script.google.com/macros/s/AKfycbz1FJxl-w6QbveJ9zsPTud1snA3eprloW2m7iTzWNh5ihhIRrs0umKm5n-YIxBGvqwRAA/exec",
+    "https://script.google.com/macros/s/AKfycby_S4TPGTs57HQ-tOOOwrB6lErNGjjjjgnwacg-HBqH8gz4pfoz1FQ2yPhpANlEN7OHtA/exec",
   getUrl:
-    "https://script.google.com/macros/s/AKfycbz1FJxl-w6QbveJ9zsPTud1snA3eprloW2m7iTzWNh5ihhIRrs0umKm5n-YIxBGvqwRAA/exec"
+    "https://script.google.com/macros/s/AKfycby_S4TPGTs57HQ-tOOOwrB6lErNGjjjjgnwacg-HBqH8gz4pfoz1FQ2yPhpANlEN7OHtA/exec"
 };
 
 const DEMO_USERS = {
@@ -123,13 +122,14 @@ function cacheDom() {
   dom.board = document.getElementById("board");
   dom.dirtyIndicator = document.getElementById("dirtyIndicator");
   dom.submitBtn = document.getElementById("submitBtn");
-  dom.loadDataBtn = document.getElementById("loadDataBtn");
   dom.refreshDataBtn = document.getElementById("refreshDataBtn");
   dom.addTaskBtn = document.getElementById("addTaskBtn");
   dom.addStoryBtn = document.getElementById("addStoryBtn");
 
   dom.nextVersion = document.getElementById("nextVersion");
   dom.nextVersionDate = document.getElementById("nextVersionDate");
+  dom.upcomingReleasesDetails = document.getElementById("upcomingReleasesDetails");
+  dom.upcomingReleasesList = document.getElementById("upcomingReleasesList");
   dom.releaseNotesLink = document.getElementById("releaseNotesLink");
 
   dom.loginIconBtn = document.getElementById("loginIconBtn");
@@ -457,7 +457,6 @@ async function fetchRoadmapFromBackend(options) {
     if (useBusyState) {
       setBusyState(true, busyMessage);
     }
-    dom.loadDataBtn.disabled = true;
     dom.refreshDataBtn.disabled = true;
 
     const response = await fetch(url.toString(), {
@@ -492,7 +491,6 @@ async function fetchRoadmapFromBackend(options) {
     if (useBusyState) {
       setBusyState(false);
     }
-    dom.loadDataBtn.disabled = false;
     dom.refreshDataBtn.disabled = false;
     renderAuthUi();
   }
@@ -509,8 +507,40 @@ function formatDate(isoDate) {
   });
 }
 
+function formatDateCompact(isoDate) {
+  if (!isoDate) return "Date pending";
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.valueOf())) return "Date pending";
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  }).replace(",", "");
+}
+
 function getStoryById(storyId) {
   return appState.stories.find((story) => story.storyId === storyId) || null;
+}
+
+function createButtonIcon(iconId) {
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const icon = document.createElementNS(SVG_NS, "svg");
+  icon.setAttribute("class", "btn-icon");
+  icon.setAttribute("aria-hidden", "true");
+
+  const use = document.createElementNS(SVG_NS, "use");
+  use.setAttribute("href", "#" + iconId);
+  icon.append(use);
+  return icon;
+}
+
+function setButtonContentWithIcon(button, label, iconId) {
+  button.textContent = "";
+  button.append(createButtonIcon(iconId));
+  const labelSpan = document.createElement("span");
+  labelSpan.className = "btn-label";
+  labelSpan.textContent = label;
+  button.append(labelSpan);
 }
 
 function getNextVersionRelease() {
@@ -524,13 +554,21 @@ function getNextVersionRelease() {
   );
 }
 
-function getDefaultVersion() {
-  return getNextVersionRelease()?.version || DEFAULT_VERSION;
+function normalizeVersion(value) {
+  return String(value || "").trim();
 }
 
-function normalizeVersion(value) {
-  const trimmed = String(value || "").trim();
-  return trimmed || getDefaultVersion();
+function normalizeVersionKey(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^v\s*/i, "")
+    .toLowerCase();
+}
+
+function getReleaseByVersion(version) {
+  const key = normalizeVersionKey(version);
+  if (!key) return null;
+  return appState.releases.find((release) => normalizeVersionKey(release.version) === key) || null;
 }
 
 function isClosedVersion(value) {
@@ -597,6 +635,27 @@ function renderReleaseSummary() {
   const releaseNotesUrl =
     previousRelease?.releaseNotesUrl || nextRelease?.releaseNotesUrl || RELEASE_NOTES_URL;
   dom.releaseNotesLink.href = releaseNotesUrl;
+
+  const upcomingReleases = appState.releases
+    .filter((release) => release.isUpcoming && release.version)
+    .sort((a, b) => new Date(a.releaseDate).valueOf() - new Date(b.releaseDate).valueOf());
+
+  dom.upcomingReleasesList.innerHTML = "";
+  if (!upcomingReleases.length) {
+    const li = document.createElement("li");
+    li.textContent = "No upcoming releases";
+    dom.upcomingReleasesList.append(li);
+  } else {
+    upcomingReleases.forEach((release) => {
+      const li = document.createElement("li");
+      li.textContent = "v " + release.version + " • " + formatDate(release.releaseDate);
+      dom.upcomingReleasesList.append(li);
+    });
+  }
+
+  if (dom.upcomingReleasesDetails) {
+    dom.upcomingReleasesDetails.open = false;
+  }
 }
 
 function getCookieValue(name) {
@@ -673,7 +732,10 @@ function renderAuthUi() {
 function updateViewModeToggleLabel() {
   if (!dom.viewModeToggleBtn) return;
   const isQuarterView = appState.filters.viewMode === "quarter";
-  dom.viewModeToggleBtn.textContent = isQuarterView ? "View by status" : "View by quarter";
+  const label = dom.viewModeToggleBtn.querySelector(".btn-label");
+  if (label) {
+    label.textContent = isQuarterView ? "View by status" : "View by quarter";
+  }
   dom.viewModeToggleBtn.setAttribute("aria-pressed", isQuarterView ? "true" : "false");
 }
 
@@ -763,7 +825,7 @@ function populateOptions() {
   dom.versionFilter.append(allVersions);
   const versionValues = new Set();
   appState.tasks.forEach((task) => {
-    const version = normalizeVersion(task.version);
+    const version = String(task.version || "").trim();
     if (!version || isClosedVersion(version)) return;
     versionValues.add(version);
   });
@@ -883,7 +945,7 @@ function taskMatchesFilters(task) {
     return false;
   }
 
-  if (appState.filters.version !== "all" && normalizeVersion(task.version) !== appState.filters.version) {
+  if (appState.filters.version !== "all" && String(task.version || "").trim() !== appState.filters.version) {
     return false;
   }
 
@@ -958,9 +1020,34 @@ function createTaskCard(task) {
   card.className = "task-card";
   card.dataset.priority = task.priorityLabel;
 
+  const taskVersion = String(task.version || "").trim();
+  const matchingRelease = !isClosedVersion(taskVersion) ? getReleaseByVersion(taskVersion) : null;
+
+  const heading = document.createElement("div");
+  heading.className = "task-heading";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "task-title-row";
+
   const title = document.createElement("h4");
   title.className = "task-title";
   title.textContent = task.title;
+  titleRow.append(title);
+
+  if (taskVersion) {
+    const versionPill = document.createElement("span");
+    versionPill.className = "task-version-pill";
+    versionPill.textContent = isClosedVersion(taskVersion) ? "N/A" : "v " + taskVersion;
+    titleRow.append(versionPill);
+  }
+  heading.append(titleRow);
+
+  if (taskVersion && matchingRelease && matchingRelease.releaseDate) {
+    const expectedDate = document.createElement("p");
+    expectedDate.className = "task-expected-date";
+    expectedDate.textContent = "Expected " + formatDateCompact(matchingRelease.releaseDate);
+    heading.append(expectedDate);
+  }
 
   const description = document.createElement("p");
   description.className = "task-description";
@@ -978,12 +1065,6 @@ function createTaskCard(task) {
   pointsBadge.className = "badge points";
   pointsBadge.textContent = task.storyPoints ? task.storyPoints + " pts" : "No points";
   badgeRow.append(pointsBadge);
-
-  const versionBadge = document.createElement("span");
-  versionBadge.className = "badge version";
-  const taskVersion = normalizeVersion(task.version);
-  versionBadge.textContent = isClosedVersion(taskVersion) ? "N/A" : "v " + taskVersion;
-  badgeRow.append(versionBadge);
 
   const quarterBadge = document.createElement("span");
   quarterBadge.className = "badge points";
@@ -1011,7 +1092,7 @@ function createTaskCard(task) {
     const editBtn = document.createElement("button");
     editBtn.className = "text-btn";
     editBtn.type = "button";
-    editBtn.textContent = "Edit";
+    setButtonContentWithIcon(editBtn, "Edit", "icon-edit");
     editBtn.addEventListener("click", () => openTaskModal("edit", task.id));
     actionRow.append(editBtn);
   }
@@ -1022,7 +1103,7 @@ function createTaskCard(task) {
       const nextBtn = document.createElement("button");
       nextBtn.className = "text-btn next";
       nextBtn.type = "button";
-      nextBtn.textContent = "Next →";
+      setButtonContentWithIcon(nextBtn, "Next", "icon-arrow-right");
       nextBtn.title = "Move to " + getStatusLabel(nextStatus);
       nextBtn.addEventListener("click", () => moveTaskToNextColumn(task.id));
       actionRow.append(nextBtn);
@@ -1032,7 +1113,7 @@ function createTaskCard(task) {
       const closeBtn = document.createElement("button");
       closeBtn.className = "text-btn";
       closeBtn.type = "button";
-      closeBtn.textContent = "Close";
+      setButtonContentWithIcon(closeBtn, "Close", "icon-check-circle");
       closeBtn.title = "Set version to N/A and move to Completed";
       closeBtn.addEventListener("click", () => closeTask(task.id));
       actionRow.append(closeBtn);
@@ -1040,9 +1121,9 @@ function createTaskCard(task) {
   }
 
   if (actionRow.children.length > 0) {
-    card.append(title, description, badgeRow, actionRow);
+    card.append(heading, description, badgeRow, actionRow);
   } else {
-    card.append(title, description, badgeRow);
+    card.append(heading, description, badgeRow);
   }
 
   return card;
@@ -1334,7 +1415,7 @@ function openTaskModal(mode, taskId) {
     dom.taskStoryInput.value = "";
     dom.taskPointsInput.value = "";
     dom.taskPriorityLabelInput.value = "P2";
-    dom.taskVersionInput.value = getDefaultVersion();
+    dom.taskVersionInput.value = "";
     dom.taskQuarterInput.value = QUARTER_OPTIONS[0];
     dom.taskExemptInput.checked = false;
   } else {
@@ -1352,7 +1433,7 @@ function openTaskModal(mode, taskId) {
     dom.taskStoryInput.value = task.storyId || "";
     dom.taskPointsInput.value = task.storyPoints ? String(task.storyPoints) : "";
     dom.taskPriorityLabelInput.value = task.priorityLabel;
-    dom.taskVersionInput.value = normalizeVersion(task.version);
+    dom.taskVersionInput.value = String(task.version || "");
     dom.taskQuarterInput.value = QUARTER_OPTIONS.includes(task.quarter) ? task.quarter : QUARTER_OPTIONS[0];
     dom.taskExemptInput.checked = !!task.storyExempt;
   }
@@ -1457,7 +1538,7 @@ function saveTaskFromModal(event) {
     storyId: dom.taskStoryInput.value || null,
     storyPoints: dom.taskPointsInput.value ? Number(dom.taskPointsInput.value) : null,
     priorityLabel: dom.taskPriorityLabelInput.value,
-    version: normalizeVersion(dom.taskVersionInput.value),
+    version: dom.taskVersionInput.value.trim(),
     quarter: dom.taskQuarterInput.value,
     storyExempt: dom.taskExemptInput.checked
   };
@@ -2032,13 +2113,6 @@ function bindEvents() {
   dom.quarterFilter.addEventListener("change", (event) => {
     appState.filters.quarter = event.target.value;
     renderBoard();
-  });
-
-  dom.loadDataBtn.addEventListener("click", async () => {
-    await fetchRoadmapFromBackend({
-      showSuccessToast: true,
-      confirmOverwrite: true
-    });
   });
 
   dom.refreshDataBtn.addEventListener("click", async () => {

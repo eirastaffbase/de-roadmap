@@ -7,6 +7,21 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <svg aria-hidden="true" class="icon-sprite">
+    <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4V1L7 6l5 5V7a5 5 0 1 1-4.9 6H5.08A7 7 0 1 0 17.65 6.35z"/></symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M19 11H13V5h-2v6H5v2h6v6h2v-6h6z"/></symbol>
+    <symbol id="icon-folder-plus" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4a2 2 0 0 0-2 2v3h20V8a2 2 0 0 0-2-2zm2 5H2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7zM11 18h2v-3h3v-2h-3v-3h-2v3H8v2h3v3z"/></symbol>
+    <symbol id="icon-send" viewBox="0 0 24 24"><path d="M2 21 23 12 2 3v7l15 2-15 2z"/></symbol>
+    <symbol id="icon-columns" viewBox="0 0 24 24"><path d="M3 5h8v14H3zM13 5h8v14h-8z"/></symbol>
+    <symbol id="icon-calendar" viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v13a3 3 0 0 0 3 3h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H6a1 1 0 0 1-1-1V10h14z"/></symbol>
+    <symbol id="icon-user" viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-8 2-8 5v2h16v-2c0-3-4-5-8-5z"/></symbol>
+    <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L18.81 8.94l-3.75-3.75zM20.71 7.04a1 1 0 0 0 0-1.41L18.37 3.29a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"/></symbol>
+    <symbol id="icon-arrow-right" viewBox="0 0 24 24"><path d="m12 4-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></symbol>
+    <symbol id="icon-check-circle" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm-1 15-4-4 1.41-1.41L11 14.17l5.59-5.58L18 10z"/></symbol>
+    <symbol id="icon-x" viewBox="0 0 24 24"><path d="m18.3 5.71-1.41-1.41L12 9.17 7.11 4.3 5.7 5.71 10.59 10.6 5.7 15.49l1.41 1.41L12 12l4.89 4.9 1.41-1.41-4.89-4.89z"/></symbol>
+    <symbol id="icon-logout" viewBox="0 0 24 24"><path d="M13 3h-2v8H3v2h8v8h2zM21 12l-4-4v3h-6v2h6v3z"/></symbol>
+    <symbol id="icon-login" viewBox="0 0 24 24"><path d="M10 17v-3h6v-4l5 5-5 5v-3zM3 3h10v2H5v14h8v2H3z"/></symbol>
+  </svg>
   <div id="appShell" class="app-shell">
     <header class="topbar">
       <div class="brand">
@@ -15,6 +30,10 @@
           <span class="release-label">Next version</span>
           <span id="nextVersion" class="release-version">v 2.4.0</span>
           <span id="nextVersionDate" class="release-date">Target date pending</span>
+          <details id="upcomingReleasesDetails" class="upcoming-releases">
+            <summary>Upcoming releases</summary>
+            <ul id="upcomingReleasesList"></ul>
+          </details>
           <div class="release-links">
             <a id="releaseNotesLink" href="#" target="_blank" rel="noopener noreferrer">Previous version release notes</a>
           </div>
@@ -23,8 +42,8 @@
 
       <div class="login-box">
         <button id="loginIconBtn" class="icon-btn" type="button" aria-label="Login settings">
-          <span aria-hidden="true">👤</span>
-          <span id="loginIconText">Login</span>
+          <svg class="btn-icon" aria-hidden="true"><use href="#icon-user"></use></svg>
+          <span id="loginIconText" class="btn-label">Login</span>
         </button>
         <span id="authStatus" class="auth-status">Viewing as guest</span>
       </div>
@@ -57,13 +76,27 @@
       </div>
 
       <div class="actions">
-        <button id="viewModeToggleBtn" class="btn btn-soft" type="button" aria-pressed="false">View by quarter</button>
-        <button id="loadDataBtn" class="btn btn-soft" type="button">Load data</button>
-        <button id="refreshDataBtn" class="btn btn-soft" type="button">Fetch update</button>
-        <button id="addTaskBtn" class="btn btn-soft" type="button">Add task</button>
-        <button id="addStoryBtn" class="btn btn-soft" type="button">Add story</button>
+        <button id="viewModeToggleBtn" class="btn btn-soft" type="button" aria-pressed="false">
+          <svg class="btn-icon" aria-hidden="true"><use href="#icon-columns"></use></svg>
+          <span class="btn-label">View by quarter</span>
+        </button>
+        <button id="refreshDataBtn" class="btn btn-soft" type="button" aria-label="Refresh data">
+          <svg class="btn-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
+          <span class="btn-label">Refresh</span>
+        </button>
+        <button id="addTaskBtn" class="btn btn-soft" type="button">
+          <svg class="btn-icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+          <span class="btn-label">Add task</span>
+        </button>
+        <button id="addStoryBtn" class="btn btn-soft" type="button">
+          <svg class="btn-icon" aria-hidden="true"><use href="#icon-folder-plus"></use></svg>
+          <span class="btn-label">Add story</span>
+        </button>
         <span id="dirtyIndicator" class="chip clean" role="status" aria-live="polite">All changes synced</span>
-        <button id="submitBtn" class="btn btn-primary" type="button">Submit</button>
+        <button id="submitBtn" class="btn btn-primary" type="button">
+          <svg class="btn-icon" aria-hidden="true"><use href="#icon-send"></use></svg>
+          <span class="btn-label">Submit</span>
+        </button>
       </div>
     </section>
 
@@ -126,8 +159,14 @@
         <p id="taskFormError" class="modal-error" role="alert"></p>
 
         <div class="modal-actions">
-          <button id="cancelTaskBtn" class="btn btn-soft" type="button">Cancel</button>
-          <button id="saveTaskBtn" class="btn btn-primary" type="submit">Save task</button>
+          <button id="cancelTaskBtn" class="btn btn-soft" type="button">
+            <svg class="btn-icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+            <span class="btn-label">Cancel</span>
+          </button>
+          <button id="saveTaskBtn" class="btn btn-primary" type="submit">
+            <svg class="btn-icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg>
+            <span class="btn-label">Save task</span>
+          </button>
         </div>
       </form>
     </div>
@@ -155,8 +194,14 @@
         <p id="storyFormError" class="modal-error" role="alert"></p>
 
         <div class="modal-actions">
-          <button id="cancelStoryBtn" class="btn btn-soft" type="button">Cancel</button>
-          <button class="btn btn-primary" type="submit">Create story</button>
+          <button id="cancelStoryBtn" class="btn btn-soft" type="button">
+            <svg class="btn-icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+            <span class="btn-label">Cancel</span>
+          </button>
+          <button id="createStoryBtn" class="btn btn-primary" type="submit">
+            <svg class="btn-icon" aria-hidden="true"><use href="#icon-folder-plus"></use></svg>
+            <span class="btn-label">Create story</span>
+          </button>
         </div>
       </form>
     </div>
@@ -181,8 +226,14 @@
       <p id="moveGuardError" class="modal-error" role="alert"></p>
 
       <div class="modal-actions">
-        <button id="cancelMoveGuardBtn" class="btn btn-soft" type="button">Cancel</button>
-        <button id="confirmMoveGuardBtn" class="btn btn-primary" type="button">Continue</button>
+        <button id="cancelMoveGuardBtn" class="btn btn-soft" type="button">
+          <svg class="btn-icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          <span class="btn-label">Cancel</span>
+        </button>
+        <button id="confirmMoveGuardBtn" class="btn btn-primary" type="button">
+          <svg class="btn-icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+          <span class="btn-label">Continue</span>
+        </button>
       </div>
     </div>
   </div>
@@ -202,9 +253,18 @@
         </div>
         <p id="loginError" class="modal-error" role="alert"></p>
         <div class="modal-actions left">
-          <button id="logoutBtn" class="btn btn-soft" type="button">Logout</button>
-          <button id="cancelLoginBtn" class="btn btn-soft" type="button">Cancel</button>
-          <button class="btn btn-primary" type="submit">Login</button>
+          <button id="logoutBtn" class="btn btn-soft" type="button">
+            <svg class="btn-icon" aria-hidden="true"><use href="#icon-logout"></use></svg>
+            <span class="btn-label">Logout</span>
+          </button>
+          <button id="cancelLoginBtn" class="btn btn-soft" type="button">
+            <svg class="btn-icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+            <span class="btn-label">Cancel</span>
+          </button>
+          <button id="confirmLoginBtn" class="btn btn-primary" type="submit">
+            <svg class="btn-icon" aria-hidden="true"><use href="#icon-login"></use></svg>
+            <span class="btn-label">Login</span>
+          </button>
         </div>
       </form>
     </div>
@@ -216,7 +276,10 @@
       <p id="validationIntro" class="modal-note"></p>
       <ul id="validationList" class="validation-list"></ul>
       <div class="modal-actions">
-        <button id="closeValidationBtn" class="btn btn-primary" type="button">Got it</button>
+        <button id="closeValidationBtn" class="btn btn-primary" type="button">
+          <svg class="btn-icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg>
+          <span class="btn-label">Got it</span>
+        </button>
       </div>
     </div>
   </div>

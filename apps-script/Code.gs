@@ -3,7 +3,6 @@ const SHEET_NAMES = {
   STORIES: "Stories",
   RELEASES: "Releases"
 };
-const DEFAULT_VERSION = "2.4.0";
 const IDEMPOTENCY_TTL_SECONDS = 600;
 const ROADMAP_SPREADSHEET_ID = "1SuKtz34cMQLCUIJtDyQs6ivkvsfpbYkrGeqq8poEsp8";
 
@@ -522,8 +521,7 @@ function normalizeBool_(value) {
 }
 
 function normalizeVersion_(value) {
-  const text = String(value || "").trim();
-  return text || DEFAULT_VERSION;
+  return String(value || "").trim();
 }
 
 function getIdempotencyCacheKey_(idempotencyKey) {

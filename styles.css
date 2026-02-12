@@ -44,6 +44,13 @@ body {
   padding: 24px;
 }
 
+.icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 .app-shell {
   max-width: 1540px;
   margin: 0 auto;
@@ -140,6 +147,29 @@ body {
 .release-date {
   font-size: 0.85rem;
   opacity: 0.95;
+}
+
+.upcoming-releases {
+  margin-top: 6px;
+  border: 1px solid rgba(255, 236, 248, 0.55);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 4px 8px;
+}
+
+.upcoming-releases summary {
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #ffeefe;
+}
+
+.upcoming-releases ul {
+  margin: 8px 0 2px;
+  padding-left: 16px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.76rem;
 }
 
 .release-links {
@@ -279,8 +309,24 @@ summary:focus-visible {
   padding: 8px 12px;
   font-size: 0.88rem;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   cursor: pointer;
   transition: transform var(--anim-fast), box-shadow var(--anim-fast), background var(--anim-fast);
+}
+
+.btn-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  fill: currentColor;
+  flex: 0 0 auto;
+}
+
+.btn-label {
+  line-height: 1;
 }
 
 .btn:hover {
@@ -553,6 +599,40 @@ summary:focus-visible {
   line-height: 1.35;
 }
 
+.task-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.task-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.task-version-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid #f2b9db;
+  background: #ffeaf6;
+  color: #8d356d;
+  padding: 2px 8px;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.task-expected-date {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-style: italic;
+  font-weight: 500;
+}
+
 .task-description {
   margin: 0;
   font-size: 0.79rem;
@@ -594,12 +674,6 @@ summary:focus-visible {
   color: #7f3a67;
 }
 
-.badge.version {
-  background: var(--brand-sand);
-  border-color: #f8bddd;
-  color: #8e316e;
-}
-
 .badge.exempt {
   background: #fff4db;
   border-color: #f4dab0;
@@ -619,6 +693,9 @@ summary:focus-visible {
   color: #7b3c69;
   font-size: 0.75rem;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
   padding: 5px 8px;
   transition: transform var(--anim-fast), box-shadow var(--anim-fast), background var(--anim-fast);
