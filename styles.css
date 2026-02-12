@@ -706,6 +706,16 @@ summary:focus-visible {
   font-size: 0.82rem;
 }
 
+.validation-list {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 260px;
+  overflow: auto;
+  font-size: 0.84rem;
+  color: var(--text-main);
+  line-height: 1.45;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

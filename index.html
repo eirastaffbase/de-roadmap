@@ -46,6 +46,11 @@
         <select id="storyFilter"></select>
       </div>
 
+      <div class="control">
+        <label for="versionFilter">Version</label>
+        <select id="versionFilter"></select>
+      </div>
+
       <div id="quarterFilterControl" class="control hidden-control" aria-hidden="true">
         <label for="quarterFilter">Quarter</label>
         <select id="quarterFilter"></select>
@@ -202,6 +207,17 @@
           <button class="btn btn-primary" type="submit">Login</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="validationModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="validationModalTitle">
+    <div class="modal narrow">
+      <h2 id="validationModalTitle">Validation errors</h2>
+      <p id="validationIntro" class="modal-note"></p>
+      <ul id="validationList" class="validation-list"></ul>
+      <div class="modal-actions">
+        <button id="closeValidationBtn" class="btn btn-primary" type="button">Got it</button>
+      </div>
     </div>
   </div>
 

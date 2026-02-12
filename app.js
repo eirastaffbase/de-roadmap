@@ -15,9 +15,9 @@ const RELEASE_NOTES_URL =
 
 const API_CONFIG = {
   syncUrl:
-    "https://script.google.com/macros/s/AKfycbwS3hZEYoo34kBz7F-E_vcVRfBWZS4tkqsjO2-rI-LzWVaRm1-X6CVOok7gurdPB6eq/exec",
+    "https://script.google.com/macros/s/AKfycbz1FJxl-w6QbveJ9zsPTud1snA3eprloW2m7iTzWNh5ihhIRrs0umKm5n-YIxBGvqwRAA/exec",
   getUrl:
-    "https://script.google.com/macros/s/AKfycbwS3hZEYoo34kBz7F-E_vcVRfBWZS4tkqsjO2-rI-LzWVaRm1-X6CVOok7gurdPB6eq/exec"
+    "https://script.google.com/macros/s/AKfycbz1FJxl-w6QbveJ9zsPTud1snA3eprloW2m7iTzWNh5ihhIRrs0umKm5n-YIxBGvqwRAA/exec"
 };
 
 const DEMO_USERS = {
@@ -86,6 +86,7 @@ const appState = {
     search: "",
     status: "all",
     story: "all",
+    version: "all",
     viewMode: "status",
     quarter: "all"
   },
@@ -115,6 +116,7 @@ function cacheDom() {
   dom.searchInput = document.getElementById("searchInput");
   dom.statusFilter = document.getElementById("statusFilter");
   dom.storyFilter = document.getElementById("storyFilter");
+  dom.versionFilter = document.getElementById("versionFilter");
   dom.viewModeToggleBtn = document.getElementById("viewModeToggleBtn");
   dom.quarterFilterControl = document.getElementById("quarterFilterControl");
   dom.quarterFilter = document.getElementById("quarterFilter");
@@ -173,6 +175,11 @@ function cacheDom() {
   dom.loginError = document.getElementById("loginError");
   dom.logoutBtn = document.getElementById("logoutBtn");
   dom.cancelLoginBtn = document.getElementById("cancelLoginBtn");
+
+  dom.validationModalBackdrop = document.getElementById("validationModalBackdrop");
+  dom.validationIntro = document.getElementById("validationIntro");
+  dom.validationList = document.getElementById("validationList");
+  dom.closeValidationBtn = document.getElementById("closeValidationBtn");
 
   dom.toast = document.getElementById("toast");
   dom.loadingOverlay = document.getElementById("loadingOverlay");
@@ -526,6 +533,39 @@ function normalizeVersion(value) {
   return trimmed || getDefaultVersion();
 }
 
+function isClosedVersion(value) {
+  return String(value || "").trim().toLowerCase() === "n/a";
+}
+
+function parseVersionParts(version) {
+  const cleaned = String(version || "")
+    .trim()
+    .replace(/^v/i, "");
+  if (!cleaned) return null;
+  const parts = cleaned.split(".");
+  if (!parts.every((part) => /^\d+$/.test(part))) return null;
+  return parts.map((part) => Number(part));
+}
+
+function compareVersionsDesc(a, b) {
+  const aParts = parseVersionParts(a);
+  const bParts = parseVersionParts(b);
+
+  if (aParts && bParts) {
+    const maxLen = Math.max(aParts.length, bParts.length);
+    for (let i = 0; i < maxLen; i += 1) {
+      const aNum = aParts[i] || 0;
+      const bNum = bParts[i] || 0;
+      if (aNum !== bNum) return bNum - aNum;
+    }
+    return 0;
+  }
+
+  if (aParts) return -1;
+  if (bParts) return 1;
+  return String(b).localeCompare(String(a));
+}
+
 function setBusyState(isBusy, message) {
   appState.isBusy = Boolean(isBusy);
   if (dom.appShell) {
@@ -716,6 +756,33 @@ function populateOptions() {
     });
   dom.storyFilter.value = appState.filters.story;
 
+  dom.versionFilter.innerHTML = "";
+  const allVersions = document.createElement("option");
+  allVersions.value = "all";
+  allVersions.textContent = "All active versions";
+  dom.versionFilter.append(allVersions);
+  const versionValues = new Set();
+  appState.tasks.forEach((task) => {
+    const version = normalizeVersion(task.version);
+    if (!version || isClosedVersion(version)) return;
+    versionValues.add(version);
+  });
+  Array.from(versionValues)
+    .sort(compareVersionsDesc)
+    .forEach((version) => {
+      const option = document.createElement("option");
+      option.value = version;
+      option.textContent = version;
+      dom.versionFilter.append(option);
+    });
+  if (
+    appState.filters.version !== "all" &&
+    !Array.from(versionValues).includes(appState.filters.version)
+  ) {
+    appState.filters.version = "all";
+  }
+  dom.versionFilter.value = appState.filters.version;
+
   dom.taskStatusInput.innerHTML = "";
   STATUS_COLUMNS.forEach((column) => {
     const option = document.createElement("option");
@@ -798,6 +865,8 @@ function compareTasks(a, b) {
 }
 
 function taskMatchesFilters(task) {
+  if (isClosedVersion(task.version)) return false;
+
   const searchTerm = appState.filters.search.trim().toLowerCase();
   if (searchTerm) {
     const storyTitle = task.storyId ? getStoryById(task.storyId)?.title || "" : "";
@@ -811,6 +880,10 @@ function taskMatchesFilters(task) {
     appState.filters.story !== "unassigned" &&
     task.storyId !== appState.filters.story
   ) {
+    return false;
+  }
+
+  if (appState.filters.version !== "all" && normalizeVersion(task.version) !== appState.filters.version) {
     return false;
   }
 
@@ -908,7 +981,8 @@ function createTaskCard(task) {
 
   const versionBadge = document.createElement("span");
   versionBadge.className = "badge version";
-  versionBadge.textContent = "v " + normalizeVersion(task.version);
+  const taskVersion = normalizeVersion(task.version);
+  versionBadge.textContent = isClosedVersion(taskVersion) ? "N/A" : "v " + taskVersion;
   badgeRow.append(versionBadge);
 
   const quarterBadge = document.createElement("span");
@@ -952,6 +1026,16 @@ function createTaskCard(task) {
       nextBtn.title = "Move to " + getStatusLabel(nextStatus);
       nextBtn.addEventListener("click", () => moveTaskToNextColumn(task.id));
       actionRow.append(nextBtn);
+    }
+
+    if (!isClosedVersion(task.version)) {
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "text-btn";
+      closeBtn.type = "button";
+      closeBtn.textContent = "Close";
+      closeBtn.title = "Set version to N/A and move to Completed";
+      closeBtn.addEventListener("click", () => closeTask(task.id));
+      actionRow.append(closeBtn);
     }
   }
 
@@ -1180,6 +1264,34 @@ function closeAllModals() {
   closeModal(dom.storyModalBackdrop);
   closeModal(dom.moveGuardModalBackdrop);
   closeModal(dom.loginModalBackdrop);
+  closeModal(dom.validationModalBackdrop);
+}
+
+function openValidationModal(errors, introMessage) {
+  const items = Array.isArray(errors) ? errors : [];
+  dom.validationIntro.textContent =
+    introMessage || "Please fix these issues before continuing.";
+  dom.validationList.innerHTML = "";
+
+  items.slice(0, 20).forEach((message) => {
+    const li = document.createElement("li");
+    li.textContent = message;
+    dom.validationList.append(li);
+  });
+
+  if (items.length > 20) {
+    const li = document.createElement("li");
+    li.textContent = "...and " + String(items.length - 20) + " more";
+    dom.validationList.append(li);
+  }
+
+  openModal(dom.validationModalBackdrop);
+}
+
+function handleValidationErrors(errors, introMessage) {
+  console.error("[Roadmap Validation Errors]", errors);
+  showToast("Validation errors found (" + String(errors.length) + ").", true);
+  openValidationModal(errors, introMessage);
 }
 
 function configureTaskModalForRole() {
@@ -1203,6 +1315,11 @@ function openTaskModal(mode, taskId) {
   appState.taskModalMode = mode;
 
   if (mode === "create") {
+    const boardErrors = validateBoard();
+    if (boardErrors.length) {
+      handleValidationErrors(boardErrors, "Fix existing validation errors before adding new items.");
+      return;
+    }
     if (!permissions.canAddTask) {
       showToast("You do not have permission to add tasks.", true);
       return;
@@ -1252,6 +1369,11 @@ function closeTaskModal() {
 }
 
 function openStoryModal() {
+  const boardErrors = validateBoard();
+  if (boardErrors.length) {
+    handleValidationErrors(boardErrors, "Fix existing validation errors before adding new items.");
+    return;
+  }
   const permissions = getPermissions();
   if (!permissions.canAddStory) {
     showToast("Only editor role can add stories.", true);
@@ -1396,6 +1518,7 @@ function saveTaskFromModal(event) {
     appState.tasks.push(newTask);
     markTaskDirty(newTask.id, "edit");
     closeTaskModal();
+    populateOptions();
     renderBoard();
     showToast("Task created.", false);
     return;
@@ -1449,6 +1572,7 @@ function saveTaskFromModal(event) {
   reindexBucket(task.status, task.storyId || null);
 
   closeTaskModal();
+  populateOptions();
   renderBoard();
   showToast("Task updated.", false);
 }
@@ -1525,17 +1649,21 @@ function validateBoard() {
 
 function buildSubmitPayload() {
   const release = getNextVersionRelease();
+  const changedStorySet = new Set(appState.storiesChanged);
+  const tasksToSync = appState.tasks
+    .filter((task) => appState.changedTaskIds.has(task.id))
+    .sort((a, b) => {
+      const statusA = STATUS_COLUMNS.findIndex((column) => column.id === a.status);
+      const statusB = STATUS_COLUMNS.findIndex((column) => column.id === b.status);
+      if (statusA !== statusB) return statusA - statusB;
+      return compareTasks(a, b);
+    });
+
   return {
     release,
     releaseVersion: release?.version || null,
     submittedAt: nowIso(),
-    tasks: [...appState.tasks]
-      .sort((a, b) => {
-        const statusA = STATUS_COLUMNS.findIndex((column) => column.id === a.status);
-        const statusB = STATUS_COLUMNS.findIndex((column) => column.id === b.status);
-        if (statusA !== statusB) return statusA - statusB;
-        return compareTasks(a, b);
-      })
+    tasks: tasksToSync
       .map((task) => ({
         task_id: task.id,
         title: task.title,
@@ -1552,7 +1680,7 @@ function buildSubmitPayload() {
         updated_by: task.updatedBy || appState.auth.username || "guest"
       })),
     stories: [...appState.stories]
-      .filter((story) => story.storyId)
+      .filter((story) => story.storyId && changedStorySet.has(story.storyId))
       .map((story) => ({
         story_id: story.storyId,
         story_title: story.title,
@@ -1603,9 +1731,21 @@ async function submitPayloadToBackend(payload) {
     throw new Error("Sync failed with status " + response.status);
   }
 
+  const body = await response.text();
+  let parsed = null;
+  try {
+    parsed = JSON.parse(body);
+  } catch (_) {
+    parsed = null;
+  }
+  if (parsed && parsed.ok === false) {
+    throw new Error(parsed.error || "Sync failed.");
+  }
+
   return {
     synced: true,
-    body: await response.text()
+    body,
+    parsed
   };
 }
 
@@ -1620,10 +1760,15 @@ async function handleSubmit() {
     return;
   }
 
+  const hasChanges = appState.changedTaskIds.size > 0 || appState.storiesChanged.size > 0;
+  if (!hasChanges) {
+    showToast("No changes to submit.", true);
+    return;
+  }
+
   const errors = validateBoard();
   if (errors.length > 0) {
-    console.error("[Roadmap Validation Errors]", errors);
-    showToast("Validation errors must be fixed first.", true);
+    handleValidationErrors(errors, "Validation errors must be fixed before submitting.");
     return;
   }
 
@@ -1639,7 +1784,15 @@ async function handleSubmit() {
       appState.unsavedChanges = false;
       clearChangeSets();
       updateDirtyIndicator();
-      showToast("Submitted to backend.", false);
+      const taskCount = Number(result?.parsed?.taskCount);
+      const storyCount = Number(result?.parsed?.storyCount);
+      if (!Number.isNaN(taskCount) || !Number.isNaN(storyCount)) {
+        const safeTaskCount = Number.isNaN(taskCount) ? 0 : taskCount;
+        const safeStoryCount = Number.isNaN(storyCount) ? 0 : storyCount;
+        showToast("Submitted: " + safeTaskCount + " tasks, " + safeStoryCount + " stories.", false);
+      } else {
+        showToast("Submitted to backend.", false);
+      }
     } else {
       showToast("Payload preview ready. Configure syncUrl to POST.", false);
     }
@@ -1650,6 +1803,38 @@ async function handleSubmit() {
     setBusyState(false);
     renderAuthUi();
   }
+}
+
+function closeTask(taskId) {
+  const permissions = getPermissions();
+  if (!permissions.canMoveTask) {
+    showToast("Only editor role can close tasks.", true);
+    return false;
+  }
+
+  const task = appState.tasks.find((item) => item.id === taskId);
+  if (!task) return false;
+
+  const oldStatus = task.status;
+  const oldStoryId = task.storyId || null;
+  const nextStoryId = task.storyId || null;
+
+  task.status = "completed";
+  task.version = "n/a";
+  if (!task.storyId) {
+    task.storyExempt = true;
+  }
+  task.order = nextOrderIndex("completed", nextStoryId, task.id);
+  task.updatedAt = nowIso();
+  task.updatedBy = appState.auth.username || "guest";
+
+  reindexBucket(oldStatus, oldStoryId);
+  reindexBucket(task.status, nextStoryId);
+  markTaskDirty(task.id, "move");
+  populateOptions();
+  renderBoard();
+  showToast("Task closed.", false);
+  return true;
 }
 
 function applyMove(task, nextStatus, options) {
@@ -1829,6 +2014,11 @@ function bindEvents() {
     renderBoard();
   });
 
+  dom.versionFilter.addEventListener("change", (event) => {
+    appState.filters.version = event.target.value;
+    renderBoard();
+  });
+
   dom.viewModeToggleBtn.addEventListener("click", () => {
     appState.filters.viewMode = appState.filters.viewMode === "quarter" ? "status" : "quarter";
     if (appState.filters.viewMode === "status") {
@@ -1875,12 +2065,14 @@ function bindEvents() {
   dom.loginForm.addEventListener("submit", handleLogin);
   dom.cancelLoginBtn.addEventListener("click", closeLoginModal);
   dom.logoutBtn.addEventListener("click", logout);
+  dom.closeValidationBtn.addEventListener("click", () => closeModal(dom.validationModalBackdrop));
 
   [
     dom.taskModalBackdrop,
     dom.storyModalBackdrop,
     dom.moveGuardModalBackdrop,
-    dom.loginModalBackdrop
+    dom.loginModalBackdrop,
+    dom.validationModalBackdrop
   ].forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
       if (event.target === backdrop) closeModal(backdrop);
