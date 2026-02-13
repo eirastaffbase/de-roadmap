@@ -40,7 +40,7 @@ const DEMO_USERS = {
 
 const ROLE_PERMISSIONS = {
   guest: {
-    label: "Viewer",
+    label: "Guest",
     canAddTask: false,
     addTaskSubmittedOnly: false,
     canAddStory: false,
@@ -58,7 +58,7 @@ const ROLE_PERMISSIONS = {
     canSubmit: false
   },
   submitter: {
-    label: "SE Team",
+    label: "Submitter",
     canAddTask: true,
     addTaskSubmittedOnly: true,
     canAddStory: false,
@@ -987,6 +987,12 @@ function clearColumnDragHover() {
   });
 }
 
+function clearDropIndicators() {
+  document.querySelectorAll(".drop-indicator.active").forEach((el) => {
+    el.classList.remove("active");
+  });
+}
+
 function handleTaskDragStart(event, taskId) {
   appState.draggingTaskId = taskId;
   event.dataTransfer.effectAllowed = "move";
@@ -1000,6 +1006,7 @@ function handleTaskDragEnd(event) {
   event.currentTarget.classList.remove("dragging");
   appState.draggingTaskId = null;
   clearColumnDragHover();
+  clearDropIndicators();
 }
 
 function markTaskDirty(taskId, kind) {
@@ -1028,6 +1035,26 @@ function reindexBucket(status, storyId) {
     .forEach((task, index) => {
       task.order = index + 1;
     });
+}
+
+function reorderTaskInGroup(task, groupKey, dropIndex, columnId, isQuarterView) {
+  const storyId = groupKey === "__unassigned" ? null : groupKey;
+  const groupTasks = appState.tasks
+    .filter((t) => {
+      if (isQuarterView) {
+        return t.quarter === columnId && (t.storyId || null) === storyId;
+      }
+      return t.status === columnId && (t.storyId || null) === storyId;
+    })
+    .filter((t) => t.id !== task.id)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  groupTasks.splice(dropIndex, 0, task);
+  groupTasks.forEach((t, i) => {
+    t.order = i + 1;
+  });
+  task.updatedAt = nowIso();
+  task.updatedBy = appState.auth.username || "guest";
 }
 
 function createTaskCard(task) {
@@ -1099,8 +1126,33 @@ function createTaskCard(task) {
   const permissions = getPermissions();
   card.draggable = permissions.canMoveTask;
   if (permissions.canMoveTask) {
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const dragHandle = document.createElementNS(SVG_NS, "svg");
+    dragHandle.setAttribute("class", "drag-handle");
+    dragHandle.setAttribute("aria-hidden", "true");
+    const handleUse = document.createElementNS(SVG_NS, "use");
+    handleUse.setAttribute("href", "#icon-grip");
+    dragHandle.append(handleUse);
+    card.append(dragHandle);
+
     card.addEventListener("dragstart", (event) => handleTaskDragStart(event, task.id));
     card.addEventListener("dragend", handleTaskDragEnd);
+
+    card.addEventListener("dragover", (event) => {
+      if (!appState.draggingTaskId || appState.draggingTaskId === task.id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = card.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const insertBefore = event.clientY < midY;
+      clearDropIndicators();
+      const indicator = insertBefore
+        ? card.previousElementSibling
+        : card.nextElementSibling;
+      if (indicator && indicator.classList.contains("drop-indicator")) {
+        indicator.classList.add("active");
+      }
+    });
   }
 
   if (permissions.canEditTask) {
@@ -1124,7 +1176,7 @@ function createTaskCard(task) {
       actionRow.append(nextBtn);
     }
 
-    if (!isClosedVersion(task.version)) {
+    if (!isClosedVersion(task.version) && task.status === "submitted") {
       const closeBtn = document.createElement("button");
       closeBtn.className = "text-btn";
       closeBtn.type = "button";
@@ -1250,12 +1302,16 @@ function renderBoard() {
       columnSection.addEventListener("dragover", (event) => {
         if (!appState.draggingTaskId) return;
         event.preventDefault();
-        columnSection.classList.add("drag-over");
+        event.dataTransfer.dropEffect = "move";
+        if (!event.target.closest(".task-card")) {
+          columnSection.classList.add("drag-over");
+        }
       });
 
       columnSection.addEventListener("dragleave", (event) => {
         if (columnSection.contains(event.relatedTarget)) return;
         columnSection.classList.remove("drag-over");
+        clearDropIndicators();
       });
 
       columnSection.addEventListener("drop", (event) => {
@@ -1263,6 +1319,11 @@ function renderBoard() {
         event.preventDefault();
         const draggedTaskId = appState.draggingTaskId || event.dataTransfer.getData("text/plain");
         columnSection.classList.remove("drag-over");
+
+        const activeIndicator = columnSection.querySelector(".drop-indicator.active") ||
+          (event.target.classList && event.target.classList.contains("drop-indicator") ? event.target : null);
+        clearDropIndicators();
+
         if (isQuarterView) {
           const task = appState.tasks.find((item) => item.id === draggedTaskId);
           if (!task) return;
@@ -1270,10 +1331,23 @@ function renderBoard() {
           task.quarter = column.id;
           task.updatedAt = nowIso();
           task.updatedBy = appState.auth.username || "guest";
+          if (activeIndicator && activeIndicator.dataset.dropIndex !== undefined) {
+            reorderTaskInGroup(task, activeIndicator.dataset.dropGroup, Number(activeIndicator.dataset.dropIndex), column.id, isQuarterView);
+          }
           markTaskDirty(task.id, "edit");
           renderBoard();
           showToast("Moved to " + column.id + ".", false);
         } else {
+          if (activeIndicator && activeIndicator.dataset.dropIndex !== undefined) {
+            const task = appState.tasks.find((item) => item.id === draggedTaskId);
+            if (task && task.status === column.id) {
+              reorderTaskInGroup(task, activeIndicator.dataset.dropGroup, Number(activeIndicator.dataset.dropIndex), column.id, false);
+              markTaskDirty(task.id, "move");
+              renderBoard();
+              showToast("Reordered.", false);
+              return;
+            }
+          }
           moveTaskToStatus(draggedTaskId, column.id);
         }
       });
@@ -1336,7 +1410,25 @@ function renderBoard() {
 
         const cards = document.createElement("div");
         cards.className = "group-cards";
-        group.tasks.forEach((task) => cards.append(createTaskCard(task)));
+        function makeDropIndicator(index) {
+          const dropZone = document.createElement("div");
+          dropZone.className = "drop-indicator";
+          dropZone.dataset.dropIndex = String(index);
+          dropZone.dataset.dropGroup = group.key;
+          dropZone.addEventListener("dragover", (event) => {
+            if (!appState.draggingTaskId) return;
+            event.preventDefault();
+            event.stopPropagation();
+            clearDropIndicators();
+            dropZone.classList.add("active");
+          });
+          return dropZone;
+        }
+        group.tasks.forEach((task, taskIndex) => {
+          cards.append(makeDropIndicator(taskIndex));
+          cards.append(createTaskCard(task));
+        });
+        cards.append(makeDropIndicator(group.tasks.length));
 
         details.append(summary, cards);
         body.append(details);
