@@ -32,6 +32,10 @@ const DEMO_USERS = {
     password: "gosolutions",
     role: "submitter"
   },
+  globalse: {
+    password: "globalsolutions",
+    role: "submitter"
+  },
   viewer: {
     password: "staffbaseviewer",
     role: "viewer"
